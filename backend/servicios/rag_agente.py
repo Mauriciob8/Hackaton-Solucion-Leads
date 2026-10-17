@@ -1,0 +1,287 @@
+"""
+servicios/rag_agente.py — Motor RAG para micro-sondeos y propuestas personalizadas
+====================================================================================
+Implementa el cerebro inteligente de la plataforma:
+
+1. SELECCIÓN DE MICRO-SONDEO: dado el sector y señal de dolor de un lead,
+   selecciona la pregunta de 1 clic más relevante usando matching semántico
+   con el catálogo de soluciones Dapta.
+
+2. GENERACIÓN DE PROPUESTA: tras recibir la respuesta del prospecto (opción A/B),
+   genera una propuesta personalizada respaldada por casos de éxito reales.
+
+NOTA DEMO: Usa matching por palabras clave + templates inteligentes.
+Para producción, descomentar la sección de ChromaDB + LLM real.
+"""
+
+import json
+import os
+import re
+from pathlib import Path
+from typing import Optional, Tuple
+
+
+# ---------------------------------------------------------------------------
+# Carga del catálogo de soluciones Dapta (base de conocimientos RAG)
+# ---------------------------------------------------------------------------
+
+_RUTA_CATALOGO = Path(__file__).parent.parent / "datos_semilla" / "catalogo_dapta.json"
+
+def _cargar_catalogo() -> list[dict]:
+    """Carga el catálogo de soluciones desde el JSON semilla."""
+    with open(_RUTA_CATALOGO, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+_CATALOGO_DAPTA = _cargar_catalogo()
+
+
+# ---------------------------------------------------------------------------
+# Templates de micro-sondeo por tipo de señal de dolor
+# ---------------------------------------------------------------------------
+
+_TEMPLATES_SONDEO = {
+    "reseña_negativa_atencion": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Notamos que varios clientes mencionan tiempos de respuesta. "
+            "Para un análisis rápido del sector: ¿su mayor cuello de botella es...\n"
+            "A) Clientes que preguntan fuera de horario y no reciben respuesta\n"
+            "B) Clientes que quedan en espera demasiado tiempo durante el horario\n"
+            "Responda solo A o B — tomará 5 segundos 🙏"
+        ),
+        "opcion_a": "atención_fuera_horario",
+        "opcion_b": "esperas_largas_en_horario",
+    },
+    "reseña_negativa_no_show": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Vimos comentarios sobre coordinación de citas. "
+            "¿Cuál es su mayor problema con reservas?\n"
+            "A) Clientes que agendan y no confirman (no-shows)\n"
+            "B) Citas que se duplican o chocan en el calendario\n"
+            "Responda A o B 👆"
+        ),
+        "opcion_a": "no_shows",
+        "opcion_b": "conflictos_agenda",
+    },
+    "vacante_ventas_manual": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Vimos que buscan reforzar su equipo de ventas. "
+            "¿Cuál es el cuello de botella actual?\n"
+            "A) Los vendedores no dan abasto con el volumen de prospectos\n"
+            "B) El seguimiento post-contacto es lento y se pierden oportunidades\n"
+            "Solo A o B, gracias ✅"
+        ),
+        "opcion_a": "volumen_prospectos",
+        "opcion_b": "seguimiento_lento",
+    },
+    "vacante_atencion_cliente": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Notamos que buscan personal de atención. "
+            "¿Dónde se generan más tickets?\n"
+            "A) WhatsApp / redes sociales (mensajes que llegan a destiempo)\n"
+            "B) Atención telefónica (llamadas que no pueden atender)\n"
+            "A o B 📩"
+        ),
+        "opcion_a": "mensajes_digitales",
+        "opcion_b": "llamadas_telefonicas",
+    },
+    "sin_whatsapp_sitio_lento": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Revisamos su presencia web y detectamos algunas oportunidades. "
+            "¿Cuál cree que les genera más clientes perdidos?\n"
+            "A) No tener un canal de contacto inmediato (WhatsApp / chat)\n"
+            "B) El sitio web tarda mucho y los clientes se van antes de contactarlos\n"
+            "Seleccione A o B 🚀"
+        ),
+        "opcion_a": "sin_canal_inmediato",
+        "opcion_b": "sitio_lento",
+    },
+    "default": {
+        "pregunta": (
+            "Hola {nombre_negocio}! Estamos analizando las necesidades de negocios del sector {sector}. "
+            "¿Cuál es su mayor reto hoy?\n"
+            "A) Conseguir más clientes nuevos\n"
+            "B) Atender mejor a los clientes que ya tienen\n"
+            "Responda A o B 🙌"
+        ),
+        "opcion_a": "conseguir_clientes",
+        "opcion_b": "mejorar_atencion",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Matching semántico simplificado (sin ChromaDB para demo)
+# ---------------------------------------------------------------------------
+
+def _encontrar_solucion_por_sector_y_dolor(
+    sector: str,
+    tipo_senal: str,
+    opcion_elegida: str,
+) -> Optional[dict]:
+    """
+    Encuentra la solución más relevante del catálogo Dapta para el contexto dado.
+
+    Estrategia de matching:
+      1. Filtrar soluciones aplicables al sector del lead
+      2. Calcular score de relevancia según el tipo de señal y opción elegida
+      3. Retornar la solución con mayor score
+    """
+    sector_normalizado = sector.lower()
+
+    # Mapa de señales a categorías de solución
+    mapa_senal_categoria = {
+        "reseña_negativa_atencion": "atencion_cliente",
+        "reseña_negativa_no_show":  "atencion_cliente",
+        "vacante_ventas_manual":    "ventas_automatizadas",
+        "vacante_atencion_cliente": "atencion_cliente",
+        "sin_whatsapp_sitio_lento": "presencia_digital",
+        "presencia_digital_deficiente": "presencia_digital",
+        "reseña_negativa_operaciones": "operaciones",
+        "reseña_negativa_seguimiento_ventas": "ventas_automatizadas",
+    }
+    categoria_buscada = mapa_senal_categoria.get(tipo_senal, "atencion_cliente")
+
+    mejores_candidatos = []
+    for solucion in _CATALOGO_DAPTA:
+        score = 0
+
+        # +3 puntos si la categoría coincide exactamente
+        if solucion["categoria"] == categoria_buscada:
+            score += 3
+
+        # +2 puntos si el sector está en la lista de sectores aplicables
+        sectores_solucion = solucion.get("sectores_aplicables", [])
+        if sector_normalizado in sectores_solucion or "cualquier_sector" in sectores_solucion:
+            score += 2
+
+        # +1 punto si el dolor objetivo menciona palabras clave del tipo de señal
+        palabras_clave = re.findall(r'\b\w+\b', tipo_senal)
+        dolor_objetivo = solucion.get("dolor_objetivo", "").lower()
+        for palabra in palabras_clave:
+            if palabra in dolor_objetivo:
+                score += 1
+
+        if score > 0:
+            mejores_candidatos.append((score, solucion))
+
+    if not mejores_candidatos:
+        # Fallback: retornar la auditoría web gratuita (siempre relevante)
+        return next((s for s in _CATALOGO_DAPTA if s["id"] == "sol-005"), None)
+
+    # Ordenar por score descendente y retornar la mejor
+    mejores_candidatos.sort(key=lambda x: x[0], reverse=True)
+    return mejores_candidatos[0][1]
+
+
+# ---------------------------------------------------------------------------
+# Funciones públicas del motor RAG
+# ---------------------------------------------------------------------------
+
+def seleccionar_micro_sondeo(
+    nombre_negocio: str,
+    sector:         str,
+    tipo_senal:     str,
+) -> str:
+    """
+    Selecciona y formatea el micro-sondeo de 1 pregunta más apropiado
+    para el sector y señal de dolor detectada.
+
+    Parámetros:
+        nombre_negocio: Nombre de la pyme a contactar
+        sector:         Sector del negocio (restaurante, clinica, etc.)
+        tipo_senal:     Tipo de señal detectada en el scraper
+
+    Retorna:
+        Texto formateado de la pregunta de micro-sondeo lista para enviar.
+    """
+    template = _TEMPLATES_SONDEO.get(tipo_senal, _TEMPLATES_SONDEO["default"])
+    pregunta = template["pregunta"].format(
+        nombre_negocio=nombre_negocio,
+        sector=sector,
+    )
+    return pregunta
+
+
+def generar_propuesta_personalizada(
+    nombre_negocio: str,
+    sector:         str,
+    tipo_senal:     str,
+    opcion_elegida: str,  # "A" o "B"
+) -> str:
+    """
+    Genera una propuesta de solución personalizada después de que el
+    prospecto respondió el micro-sondeo.
+
+    Usa el catálogo Dapta para personalizar el caso de éxito y los
+    beneficios según el sector y dolor específico del lead.
+
+    Parámetros:
+        nombre_negocio: Nombre de la pyme
+        sector:         Sector del negocio
+        tipo_senal:     Tipo de señal de dolor original
+        opcion_elegida: La opción que eligió el prospecto ("A" o "B")
+
+    Retorna:
+        Texto de propuesta personalizada listo para enviar.
+    """
+    solucion = _encontrar_solucion_por_sector_y_dolor(sector, tipo_senal, opcion_elegida)
+
+    if not solucion:
+        return (
+            f"Hola {nombre_negocio}, gracias por responder. "
+            "Tenemos una solución de IA que puede ayudarles. "
+            "¿Podemos agendar una llamada de 15 minutos esta semana?"
+        )
+
+    # Template de propuesta personalizada usando datos del catálogo
+    propuesta = (
+        f"¡Perfecto {nombre_negocio}! Gracias por responder 🙏\n\n"
+        f"Basado en su respuesta, identificamos exactamente el reto que mencionan.\n\n"
+        f"💡 **{solucion['titulo']}**\n"
+        f"Para negocios del sector {sector}, esto típicamente genera:\n"
+        f"✅ {solucion['resultado_tipico']}\n\n"
+        f"📋 Caso real: {solucion['caso_exito']}\n\n"
+        f"🔧 Implementación en solo {solucion['tiempo_implementacion_dias']} día(s). "
+        + (f"Prueba gratuita disponible." if solucion['precio_referencial_usd'] == 0
+           else f"Inversión inicial desde ${solucion['precio_referencial_usd']} USD/mes.")
+        + f"\n\n¿Les interesa una demo de 15 minutos esta semana? "
+        f"Solo responda SÍ y le confirmamos horario 📅"
+    )
+
+    return propuesta
+
+
+def simular_calificacion_dapta(
+    nombre_negocio: str,
+    sector:         str,
+    opcion_elegida: Optional[str],
+    propuesta_enviada: bool,
+) -> Tuple[bool, float]:
+    """
+    Simula la respuesta del agente calificador de Dapta.
+
+    En producción, esto dispararía un webhook real a la API de Dapta.
+    Para la demo, aplica reglas heurísticas basadas en el estado del lead.
+
+    Retorna:
+        Tupla (calificado: bool, score_calidad: float entre 0 y 1)
+    """
+    score = 0.0
+
+    # +0.4 si respondió el sondeo (mostró interés mínimo)
+    if opcion_elegida in ["A", "B"]:
+        score += 0.4
+
+    # +0.3 si se le envió una propuesta (pasó la primera barrera)
+    if propuesta_enviada:
+        score += 0.3
+
+    # +0.2 puntos aleatorios (simula variables de comportamiento)
+    import random
+    score += random.uniform(0.0, 0.3)
+    score = min(score, 1.0)
+
+    # Un lead se califica si supera el umbral de 0.6
+    calificado = score >= 0.6
+
+    return calificado, round(score, 2)

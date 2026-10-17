@@ -1,0 +1,74 @@
+[
+  {
+    "id": "sol-001",
+    "titulo": "Agente de Atención 24/7 para WhatsApp",
+    "categoria": "atencion_cliente",
+    "sectores_aplicables": ["restaurante", "clinica", "taller", "salon_belleza", "tienda"],
+    "dolor_objetivo": "clientes que no confirman o responden fuera de horario",
+    "descripcion": "Un agente conversacional en WhatsApp que responde consultas, confirma reservas y da seguimiento automático fuera del horario de atención. Reduce el 80% de los no-shows en clínicas y restaurantes.",
+    "resultado_tipico": "Reducción del 80% en no-shows y aumento del 35% en reservas confirmadas",
+    "caso_exito": "Clínica Dental Medina (Bogotá): pasó de 12 a 2 no-shows semanales en 30 días",
+    "precio_referencial_usd": 89,
+    "tiempo_implementacion_dias": 3
+  },
+  {
+    "id": "sol-002",
+    "titulo": "Bot de Respuesta a Reseñas de Google",
+    "categoria": "reputacion_online",
+    "sectores_aplicables": ["restaurante", "hotel", "clinica", "taller", "comercio"],
+    "dolor_objetivo": "reseñas negativas sin respuesta o respuestas lentas",
+    "descripcion": "Monitorea y responde automáticamente reseñas de Google Maps con tono empático y profesional. Detecta reseñas negativas y escala a humanos en menos de 5 minutos.",
+    "resultado_tipico": "Rating de Google subió de 3.8 a 4.5 en 60 días",
+    "caso_exito": "Restaurante La Leña (Medellín): recuperó 4 clientes perdidos por reseñas negativas en el primer mes",
+    "precio_referencial_usd": 49,
+    "tiempo_implementacion_dias": 1
+  },
+  {
+    "id": "sol-003",
+    "titulo": "Agente de Seguimiento de Ventas",
+    "categoria": "ventas_automatizadas",
+    "sectores_aplicables": ["inmobiliaria", "agencia", "consultora", "tecnologia", "manufactura"],
+    "dolor_objetivo": "prospectos que quedan sin seguimiento por falta de equipo de ventas",
+    "descripcion": "Agente IA que hace seguimiento automático a prospectos via WhatsApp y Email. Califica leads según respuestas y agenda citas en el calendario del vendedor.",
+    "resultado_tipico": "3x más citas agendadas sin contratar más vendedores",
+    "caso_exito": "Inmobiliaria CasaFácil: pasó de 10 a 32 visitas semanales sin contratar personal adicional",
+    "precio_referencial_usd": 129,
+    "tiempo_implementacion_dias": 5
+  },
+  {
+    "id": "sol-004",
+    "titulo": "Asistente de Pedidos y Facturación por WhatsApp",
+    "categoria": "operaciones",
+    "sectores_aplicables": ["restaurante", "tienda", "distribuidora", "panaderia", "farmacia"],
+    "dolor_objetivo": "pedidos por WhatsApp que se pierden o llegan tarde a cocina",
+    "descripcion": "Recibe y procesa pedidos directamente por WhatsApp, los envía al sistema de cocina o bodega en tiempo real, y confirma al cliente con tiempo estimado de entrega.",
+    "resultado_tipico": "Eliminación del 95% de pedidos perdidos y reducción del 40% en errores de pedido",
+    "caso_exito": "Panadería El Trigal: procesa 200+ pedidos diarios sin errores desde la implementación",
+    "precio_referencial_usd": 69,
+    "tiempo_implementacion_dias": 2
+  },
+  {
+    "id": "sol-005",
+    "titulo": "Auditoría Web Gratuita + Recomendaciones de IA",
+    "categoria": "presencia_digital",
+    "sectores_aplicables": ["cualquier_sector"],
+    "dolor_objetivo": "sitio web lento, sin botón de WhatsApp o sin chat de conversión",
+    "descripcion": "Análisis automatizado de la presencia digital: velocidad de carga, botón WhatsApp, formularios de contacto, y SEO local. Entrega reporte con las 3 mejoras más rentables.",
+    "resultado_tipico": "Identificación de 3-5 mejoras que aumentan conversión web en promedio 25%",
+    "caso_exito": "Taller Automotriz Pérez: instalación del chat en 1 día generó 8 nuevas consultas en la primera semana",
+    "precio_referencial_usd": 0,
+    "tiempo_implementacion_dias": 0
+  },
+  {
+    "id": "sol-006",
+    "titulo": "Agente de Reclutamiento y Screening Inicial",
+    "categoria": "recursos_humanos",
+    "sectores_aplicables": ["cualquier_sector"],
+    "dolor_objetivo": "proceso de contratación lento o costoso por volumen de CVs",
+    "descripcion": "Agente que recibe postulaciones, hace preguntas de screening automáticas y clasifica candidatos según los criterios del puesto. Ahorra 8+ horas semanales de RRHH.",
+    "resultado_tipico": "Reducción del 70% en tiempo de revisión de CVs y mejora de calidad de candidatos",
+    "caso_exito": "Cadena de Tiendas MegaShop: contrató 15 cajeros en 5 días en lugar de 3 semanas",
+    "precio_referencial_usd": 99,
+    "tiempo_implementacion_dias": 3
+  }
+]
