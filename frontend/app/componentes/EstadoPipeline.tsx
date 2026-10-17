@@ -1,10 +1,7 @@
 /**
- * EstadoPipeline.tsx — Funnel visual de conversión
- * =================================================
- * Muestra el flujo completo del lead desde detección hasta calificación:
- * Detectados → Contactados → Respondieron → Calificados
- *
- * Implementación visual pura con CSS (sin librerías de gráficos).
+ * EstadoPipeline.tsx — Funnel visual de conversión (Estilo AdminKit / Sneat)
+ * =========================================================================
+ * Embudo limpio en tarjetas blancas con barras de progreso y porcentajes.
  */
 
 "use client";
@@ -22,16 +19,15 @@ interface PropsEstadoPipeline {
   cargando?: boolean;
 }
 
-// Mapas de clases Tailwind para cada etapa (colores pre-definidos)
-const CLASES_ETAPA: Record<string, { borde: string; fondo: string; texto: string; barra: string }> = {
-  Detectados:   { borde: "border-indigo-500/40", fondo: "bg-indigo-500/10", texto: "text-indigo-300", barra: "bg-indigo-500" },
-  Contactados:  { borde: "border-amber-500/40",  fondo: "bg-amber-500/10",  texto: "text-amber-300",  barra: "bg-amber-500" },
-  Respondieron: { borde: "border-blue-500/40",   fondo: "bg-blue-500/10",   texto: "text-blue-300",   barra: "bg-blue-500" },
-  Calificados:  { borde: "border-emerald-500/40",fondo: "bg-emerald-500/10",texto: "text-emerald-300",barra: "bg-emerald-500" },
+const CONFIG_ETAPAS: Record<string, { borde: string; bgIcono: string; colorTexto: string; barraBg: string }> = {
+  Detectados:   { borde: "border-indigo-100",  bgIcono: "bg-indigo-50",  colorTexto: "text-indigo-600",  barraBg: "bg-indigo-500" },
+  Contactados:  { borde: "border-amber-100",   bgIcono: "bg-amber-50",   colorTexto: "text-amber-600",   barraBg: "bg-amber-500" },
+  Respondieron: { borde: "border-blue-100",    bgIcono: "bg-blue-50",    colorTexto: "text-blue-600",    barraBg: "bg-blue-500" },
+  Calificados:  { borde: "border-emerald-100", bgIcono: "bg-emerald-50", colorTexto: "text-emerald-600", barraBg: "bg-emerald-500" },
 };
 
 const ICONOS_ETAPA: Record<string, string> = {
-  Detectados:   "🔍",
+  Detectados:   "🎯",
   Contactados:  "📤",
   Respondieron: "💬",
   Calificados:  "✅",
@@ -40,14 +36,7 @@ const ICONOS_ETAPA: Record<string, string> = {
 export default function EstadoPipeline({ etapas, modoDemo, cargando }: PropsEstadoPipeline) {
   if (cargando) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="h-5 bg-slate-800 rounded w-36 mb-4 cargando" />
-        <div className="flex gap-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex-1 h-24 bg-slate-800 rounded-lg cargando" />
-          ))}
-        </div>
-      </div>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs h-72 cargando" />
     );
   }
 
@@ -56,71 +45,88 @@ export default function EstadoPipeline({ etapas, modoDemo, cargando }: PropsEsta
   const maxCantidad = Math.max(...etapas.map(e => e.cantidad), 1);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
       {/* Encabezado */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-slate-100 font-semibold text-base">
-            Funnel de Conversión
-          </h2>
-          <p className="text-slate-400 text-xs mt-0.5">
-            Tasa de conversión entre etapas del pipeline
+          <div className="flex items-center gap-2">
+            <h2 className="text-slate-900 font-bold text-base">
+              Embudo de Conversión
+            </h2>
+            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+              Pipeline End-to-End
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-0.5">
+            Evolución del prospecto desde el scraping hasta la validación de Dapta
           </p>
         </div>
         {modoDemo && (
-          <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-full">
-            Modo demo
+          <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full font-medium">
+            Muestra Demo
           </span>
         )}
       </div>
 
-      {/* Tarjetas del funnel */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 items-stretch">
+      {/* Grid de etapas del embudo */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {etapas.map((etapa, idx) => {
-          const clases = CLASES_ETAPA[etapa.etapa] || CLASES_ETAPA["Detectados"];
-          const icono  = ICONOS_ETAPA[etapa.etapa] || "📌";
-          const anchoPct = Math.max((etapa.cantidad / maxCantidad) * 100, 10);
+          const conf = CONFIG_ETAPAS[etapa.etapa] || CONFIG_ETAPAS["Detectados"];
+          const icono = ICONOS_ETAPA[etapa.etapa] || "📌";
+          const anchoPct = Math.max((etapa.cantidad / maxCantidad) * 100, 8);
 
           return (
-            <div key={etapa.etapa} className="flex flex-row sm:flex-col items-center flex-1">
-              {/* Tarjeta de etapa */}
-              <div
-                className={`
-                  flex-1 sm:w-full border ${clases.borde} ${clases.fondo}
-                  rounded-xl p-4 flex flex-col items-center gap-2
-                  min-w-0 transition-transform hover:scale-105 duration-200
-                `}
-              >
-                <span className="text-2xl">{icono}</span>
-                <p className="text-slate-400 text-xs text-center font-medium uppercase tracking-wide">
+            <div
+              key={etapa.etapa}
+              className={`bg-slate-50/70 border ${conf.borde} rounded-xl p-4 flex flex-col justify-between sombra-card-hover`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`w-8 h-8 rounded-lg ${conf.bgIcono} flex items-center justify-center text-sm shadow-2xs`}>
+                  {icono}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  Paso {idx + 1}
+                </span>
+              </div>
+
+              <div className="mt-3">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   {etapa.etapa}
                 </p>
-                <p className={`${clases.texto} text-2xl font-bold`}>
+                <p className="text-xl font-extrabold text-slate-900 mt-0.5">
                   {etapa.cantidad.toLocaleString("es-CO")}
                 </p>
-                {/* Barra de conversión */}
-                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              </div>
+
+              {/* Barra de progreso */}
+              <div className="mt-3">
+                <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`h-full ${clases.barra} rounded-full transition-all duration-700`}
+                    className={`h-full ${conf.barraBg} rounded-full transition-all duration-700`}
                     style={{ width: `${anchoPct}%` }}
                   />
                 </div>
-                {idx > 0 && (
-                  <p className="text-slate-500 text-xs">
-                    {etapa.porcentaje.toFixed(1)}% de anterior
-                  </p>
-                )}
-              </div>
-
-              {/* Flecha entre etapas */}
-              {idx < etapas.length - 1 && (
-                <div className="hidden sm:flex items-center justify-center w-6 flex-shrink-0">
-                  <span className="text-slate-600 text-lg">→</span>
+                <div className="flex items-center justify-between mt-1 text-[10px]">
+                  <span className="text-slate-400">
+                    {idx === 0 ? "Base 100%" : `${etapa.porcentaje.toFixed(1)}% anterior`}
+                  </span>
+                  <span className={`font-semibold ${conf.colorTexto}`}>
+                    {((etapa.cantidad / maxCantidad) * 100).toFixed(0)}%
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Nota explicativa al pie */}
+      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+          Micro-sondeos de 1 clic incrementan la tasa de respuesta inicial a más del 25%
+        </span>
+        <span className="font-semibold text-slate-700">Dapta Engine</span>
       </div>
     </div>
   );

@@ -148,3 +148,84 @@ def get_resumen():
         "canal_mas_eficiente": canal_ganador.nombre if canal_ganador else "Sin datos",
         "mejor_cpl_calificado": canal_ganador.cpl_calificado if canal_ganador else 0.0,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/metricas/smart-router — Recomendador predictivo de canales
+# ---------------------------------------------------------------------------
+
+@router.get("/smart-router", summary="Recomendación estratégica del canal más rentable")
+def get_smart_router():
+    """
+    Analiza los datos actuales de CPL por canal y retorna una recomendación
+    estratégica basada en rentabilidad real.
+
+    Lógica:
+      - Compara el CPL Calificado entre los canales activos (con calificados > 0).
+      - Calcula el ahorro porcentual del canal ganador vs. el peor canal.
+      - Genera un mensaje de recomendación accionable con datos reales.
+
+    Convierte el dashboard de un visualizador de datos a un sistema de decisiones.
+    """
+    metricas = calcular_metricas_por_canal()
+    canales_activos = [m for m in metricas if m.total_calificados > 0 and m.cpl_calificado > 0]
+
+    if len(canales_activos) < 2:
+        # No hay suficientes datos para comparar — retornar mensaje genérico
+        if len(canales_activos) == 1:
+            c = canales_activos[0]
+            return {
+                "hay_recomendacion": True,
+                "canal_recomendado": c.nombre,
+                "canal_recomendado_id": c.canal_id,
+                "cpl_recomendado": c.cpl_calificado,
+                "cpl_alternativo": None,
+                "ahorro_porcentual": None,
+                "mensaje": (
+                    f"✅ Canal único activo: {c.nombre} con CPL Calificado de "
+                    f"${c.cpl_calificado:.2f} USD. Detecte más leads con otros canales "
+                    f"para obtener comparaciones."
+                ),
+                "modo_demo": False,
+            }
+        return {
+            "hay_recomendacion": False,
+            "mensaje": (
+                "⚠️ Aún no hay leads calificados suficientes para comparar canales. "
+                "Detecte y califique más leads para activar el Smart Router."
+            ),
+            "modo_demo": False,
+        }
+
+    # Ordenar por CPL calificado ascendente (menor es mejor)
+    canales_activos.sort(key=lambda c: c.cpl_calificado)
+    mejor = canales_activos[0]
+    peor  = canales_activos[-1]
+
+    ahorro_pct = round((1 - mejor.cpl_calificado / peor.cpl_calificado) * 100, 1)
+
+    # Detectar el sector dominante (canal con más leads)
+    canal_mayor_volumen = max(canales_activos, key=lambda c: c.total_detectados)
+
+    mensaje = (
+        f"🚀 Recomendación del Sistema: Para maximizar rentabilidad, "
+        f"reasigne el presupuesto a {mejor.nombre}. "
+        f"Genera un CPL Calificado de ${mejor.cpl_calificado:.2f} USD, "
+        f"un {ahorro_pct}% menor que {peor.nombre} (${peor.cpl_calificado:.2f} USD). "
+        f"El canal de mayor volumen actual es {canal_mayor_volumen.nombre} "
+        f"con {canal_mayor_volumen.total_detectados} prospectos detectados."
+    )
+
+    return {
+        "hay_recomendacion": True,
+        "canal_recomendado":    mejor.nombre,
+        "canal_recomendado_id": mejor.canal_id,
+        "cpl_recomendado":      mejor.cpl_calificado,
+        "canal_alternativo":    peor.nombre,
+        "cpl_alternativo":      peor.cpl_calificado,
+        "ahorro_porcentual":    ahorro_pct,
+        "total_canales_comparados": len(canales_activos),
+        "mensaje":  mensaje,
+        "modo_demo": False,
+    }
+

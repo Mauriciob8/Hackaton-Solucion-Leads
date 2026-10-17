@@ -2,48 +2,62 @@
 
 /* -----------------------------------------------------------------------
    Motor de Leads — Estilos globales
-   Dark mode forzado siempre (no depende de preferencia del sistema)
+   Diseño Admin Dashboard Profesional (Inspirado en Sneat y AdminKit Pro)
    ----------------------------------------------------------------------- */
 
 :root {
-  --fondo:          #020617;   /* slate-950 */
-  --fondo-tarjeta:  #0f172a;   /* slate-900 */
-  --fondo-borde:    #1e293b;   /* slate-800 */
-  --texto-primario: #f1f5f9;   /* slate-100 */
-  --texto-secundario: #94a3b8; /* slate-400 */
-  --acento-indigo:  #6366f1;   /* indigo-500 */
-  --acento-emerald: #10b981;   /* emerald-500 */
-  --acento-amber:   #f59e0b;   /* amber-500 */
-  --acento-blue:    #3b82f6;   /* blue-500 */
+  --fondo-app:         #f8f9fc;   /* slate-50 / off-white corporativo */
+  --fondo-tarjeta:     #ffffff;   /* blanco puro */
+  --fondo-borde:       #e2e8f0;   /* slate-200 */
+  --texto-primario:    #0f172a;   /* slate-900 */
+  --texto-secundario:  #64748b;   /* slate-500 */
+  --texto-muted:       #94a3b8;   /* slate-400 */
+  --acento-primario:   #4f46e5;   /* indigo-600 */
+  --acento-emerald:    #10b981;   /* emerald-500 */
+  --acento-amber:      #f59e0b;   /* amber-500 */
+  --acento-blue:       #2563eb;   /* blue-600 */
 }
 
 body {
-  background: var(--fondo);
+  background-color: var(--fondo-app);
   color: var(--texto-primario);
-  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  font-family: var(--font-geist-sans, Inter, system-ui, -apple-system, sans-serif);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar personalizada para el dashboard */
+/* Scrollbar sutil y moderna */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--fondo-borde);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155; /* slate-700 */
-  border-radius: 3px;
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569; /* slate-600 */
+  background: #94a3b8; /* slate-400 */
 }
 
-/* Animación de pulso para estados de carga */
+/* Animación de carga tipo esqueleto */
 @keyframes pulso-suave {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+  50%       { opacity: 0.45; }
 }
 .cargando {
   animation: pulso-suave 1.5s ease-in-out infinite;
+}
+
+/* Sombras suaves estilo Sneat / AdminKit */
+.sombra-card {
+  box-shadow: 0 2px 6px 0 rgba(67, 89, 113, 0.08);
+}
+.sombra-card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sombra-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 14px 0 rgba(67, 89, 113, 0.12);
 }

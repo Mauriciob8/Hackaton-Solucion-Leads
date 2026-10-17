@@ -1,49 +1,53 @@
 /**
- * page.tsx — Dashboard principal del Motor de Leads
- * ==================================================
- * Integra todos los componentes en un dashboard de 4 secciones:
- *   1. KPI Cards (TarjetaResumen)   — Métricas globales del sistema
- *   2. Panel de Detección           — Lanzar el scraper
- *   3. Funnel de Conversión         — Visualización por etapa
- *   4. Tabla CPL por Canal          — Comparativa de costos
- *   5. Pipeline de Leads            — Lista interactiva de prospectos
- *
- * Toda la lógica de llamadas a la API está centralizada aquí.
+ * page.tsx — Dashboard Admin Principal (Motor de Leads)
+ * =======================================================
+ * Arquitectura modular completa:
+ * - Sidebar lateral (Navegación entre módulos)
+ * - Navbar superior (Buscador, Entorno, Exportar CSV, Perfil)
+ * - Vistas centralizadas dinámicas:
+ *     1. Dashboard General (KPIs, Smart Router, Embudo y CPL)
+ *     2. Detección Activa (Scraper)
+ *     3. Pipeline de Prospectos (Tabla Interactiva)
+ *     4. Unit Economics & CPL (Análisis Financiero)
+ *     5. Base RAG (Catálogo Dapta)
  */
 
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 
+import Sidebar, { ModuloActivo }             from "./componentes/Sidebar";
+import Navbar                               from "./componentes/Navbar";
 import TarjetaResumen, { DatosResumen }     from "./componentes/TarjetaResumen";
 import GraficoCPL,     { MetricaCanal }     from "./componentes/GraficoCPL";
 import EstadoPipeline, { DatoFunnel }       from "./componentes/EstadoPipeline";
 import TablaLeads,     { Lead }             from "./componentes/TablaLeads";
 import PanelSondeo                          from "./componentes/PanelSondeo";
+import TarjetaSmartRouter, { DatosSmartRouter } from "./componentes/TarjetaSmartRouter";
+import VistaCatalogoRAG                     from "./componentes/VistaCatalogoRAG";
+import ModalAuditoriaRAG                    from "./componentes/ModalAuditoriaRAG";
+import ModalConversacion                    from "./componentes/ModalConversacion";
 
-// URL base del backend FastAPI
 const API_URL = "http://127.0.0.1:8000";
 
-// ---------------------------------------------------------------------------
-// Tipos de estado global
-// ---------------------------------------------------------------------------
-
 interface EstadoApp {
-  resumen:   DatosResumen | null;
-  canales:   MetricaCanal[];
-  funnel:    DatoFunnel[];
-  leads:     Lead[];
-  modoDemo:  boolean;
-  error:     string | null;
+  resumen:     DatosResumen | null;
+  canales:     MetricaCanal[];
+  funnel:      DatoFunnel[];
+  leads:       Lead[];
+  smartRouter: DatosSmartRouter | null;
+  modoDemo:    boolean;
+  error:       string | null;
 }
 
 const ESTADO_INICIAL: EstadoApp = {
-  resumen:  null,
-  canales:  [],
-  funnel:   [],
-  leads:    [],
-  modoDemo: false,
-  error:    null,
+  resumen:     null,
+  canales:     [],
+  funnel:      [],
+  leads:       [],
+  smartRouter: null,
+  modoDemo:    false,
+  error:       null,
 };
 
 const RESUMEN_DEMO: DatosResumen = {
@@ -55,10 +59,6 @@ const RESUMEN_DEMO: DatosResumen = {
   mejor_cpl_calificado: 0.65,
 };
 
-// ---------------------------------------------------------------------------
-// Hook de carga de datos
-// ---------------------------------------------------------------------------
-
 function useDatosDashboard() {
   const [estado, setEstado] = useState<EstadoApp>(ESTADO_INICIAL);
   const [cargando, setCargando] = useState(true);
@@ -66,36 +66,50 @@ function useDatosDashboard() {
   const cargarTodos = useCallback(async () => {
     setCargando(true);
     try {
-      const [resMetricas, resFunnel, resResumen, resLeads] = await Promise.all([
+      const [resMetricas, resFunnel, resResumen, resLeads, resSmartRouter] = await Promise.all([
         fetch(`${API_URL}/api/metricas`),
         fetch(`${API_URL}/api/metricas/funnel`),
         fetch(`${API_URL}/api/metricas/resumen`),
-        fetch(`${API_URL}/api/leads?tamano=50`),
+        fetch(`${API_URL}/api/leads?tamano=100`),
+        fetch(`${API_URL}/api/metricas/smart-router`),
       ]);
 
-      const datMetricas = await resMetricas.json();
-      const datFunnel   = await resFunnel.json();
-      const datResumen  = await resResumen.json();
-      const datLeads    = await resLeads.json();
+      const datMetricas    = await resMetricas.json();
+      const datFunnel      = await resFunnel.json();
+      const datResumen     = await resResumen.json();
+      const datLeads       = await resLeads.json();
+      const datSmartRouter = await resSmartRouter.json();
 
       setEstado({
-        canales:  datMetricas.canales  || [],
-        funnel:   datFunnel.etapas     || [],
-        resumen:  datResumen           || RESUMEN_DEMO,
-        leads:    datLeads.leads       || [],
-        modoDemo: datMetricas.modo_demo || false,
-        error:    null,
+        canales:     datMetricas.canales   || [],
+        funnel:      datFunnel.etapas      || [],
+        resumen:     datResumen            || RESUMEN_DEMO,
+        leads:       datLeads.leads        || [],
+        smartRouter: datSmartRouter        || null,
+        modoDemo:    datMetricas.modo_demo || false,
+        error:       null,
       });
     } catch {
-      // Si el backend no está disponible, mostrar datos demo
       const { default: datosDemoCompletos } = await import("./datos_demo.json");
       setEstado({
-        canales:  datosDemoCompletos.canales,
-        funnel:   datosDemoCompletos.funnel,
-        resumen:  RESUMEN_DEMO,
-        leads:    [],
-        modoDemo: true,
-        error:    "Backend no disponible — mostrando datos de demostración",
+        canales:     datosDemoCompletos.canales,
+        funnel:      datosDemoCompletos.funnel,
+        resumen:     RESUMEN_DEMO,
+        leads:       [],
+        smartRouter: {
+          hay_recomendacion: true,
+          canal_recomendado: "WhatsApp Cloud API",
+          canal_recomendado_id: "whatsapp",
+          cpl_recomendado: 0.85,
+          canal_alternativo: "Email Transaccional",
+          cpl_alternativo: 1.10,
+          ahorro_porcentual: 22.7,
+          total_canales_comparados: 3,
+          mensaje: "Recomendación: Reasigne el presupuesto a WhatsApp Cloud API. Genera un CPL Calificado 22% menor que el Email.",
+          modo_demo: true
+        },
+        modoDemo:    true,
+        error:       "Backend no disponible — mostrando datos de demostración",
       });
     } finally {
       setCargando(false);
@@ -109,18 +123,29 @@ function useDatosDashboard() {
   return { estado, cargando, recargar: cargarTodos };
 }
 
-// ---------------------------------------------------------------------------
-// Componente principal
-// ---------------------------------------------------------------------------
-
 export default function PaginaPrincipal() {
   const { estado, cargando, recargar } = useDatosDashboard();
+
+  // Módulo activo en el Sidebar
+  const [moduloActivo, setModuloActivo] = useState<ModuloActivo>("dashboard");
+
+  // Búsqueda global en el Navbar
+  const [busqueda, setBusqueda] = useState("");
+
+  // Estado del scraper
   const [detectando, setDetectando] = useState(false);
   const [ultimaDeteccion, setUltimaDeteccion] = useState<{
     cantidad: number; timestamp: string;
   } | null>(null);
 
-  // -- Detectar nuevos leads --
+  // Modales
+  const [modalAuditoria, setModalAuditoria] = useState<Lead | null>(null);
+  const [modalConversacion, setModalConversacion] = useState<Lead | null>(null);
+
+  function handleDescargarCSV() {
+    window.open(`${API_URL}/api/leads/calificados/exportar-csv`, "_blank");
+  }
+
   async function handleDetectar(
     sector: string,
     ciudad: string,
@@ -143,6 +168,8 @@ export default function PaginaPrincipal() {
       const ahora = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
       setUltimaDeteccion({ cantidad: data.leads_detectados || 0, timestamp: ahora });
       await recargar();
+      // Si estamos en detección, cambiar al pipeline para ver los resultados
+      setModuloActivo("pipeline");
     } catch {
       setUltimaDeteccion(null);
       console.error("Error al detectar leads");
@@ -151,7 +178,6 @@ export default function PaginaPrincipal() {
     }
   }
 
-  // -- Ejecutar acción en un lead --
   async function handleAccionLead(
     leadId: string,
     accion: "contactar" | "respuesta" | "calificar"
@@ -160,7 +186,6 @@ export default function PaginaPrincipal() {
       if (accion === "contactar") {
         await fetch(`${API_URL}/api/leads/${leadId}/contactar`, { method: "POST" });
       } else if (accion === "respuesta") {
-        // Simular respuesta aleatoria A o B para el demo
         const opcion = Math.random() > 0.5 ? "A" : "B";
         await fetch(`${API_URL}/api/leads/${leadId}/respuesta`, {
           method: "POST",
@@ -176,7 +201,6 @@ export default function PaginaPrincipal() {
     }
   }
 
-  // -- Ejecutar acción en lote sobre todos los leads de una etapa --
   async function handleAccionLote(
     accion: "contactar" | "respuesta" | "calificar"
   ) {
@@ -193,102 +217,180 @@ export default function PaginaPrincipal() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      {/* ------------------------------------------------------------------ */}
-      {/* HEADER                                                              */}
-      {/* ------------------------------------------------------------------ */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-indigo-400 flex items-center gap-2">
-              ⚡ Motor de Leads
-            </h1>
-            <p className="text-slate-500 text-xs mt-0.5">
-              Intent-Based Lead Engine + Unit Economics Tracker
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {estado.modoDemo && (
-              <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full">
-                📊 Modo Demo
-              </span>
-            )}
-            <button
-              onClick={recargar}
-              disabled={cargando}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {cargando ? "⏳" : "🔄"} Actualizar
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex bg-[#f8f9fc] text-slate-800">
+      {/* 1. Sidebar Lateral */}
+      <Sidebar
+        moduloActivo={moduloActivo}
+        onCambiarModulo={setModuloActivo}
+        totalLeads={estado.leads.length || (estado.resumen?.total_leads_sistema ?? 0)}
+        totalCalificados={estado.resumen?.total_calificados ?? 0}
+      />
 
-      {/* ------------------------------------------------------------------ */}
-      {/* BANNER DE ERROR (si backend no disponible)                          */}
-      {/* ------------------------------------------------------------------ */}
-      {estado.error && (
-        <div className="max-w-7xl mx-auto px-6 pt-4">
-          <div className="bg-red-950/50 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm flex items-start gap-2">
-            <span className="text-red-400 mt-0.5">⚠️</span>
-            <div>
-              <p className="font-medium">{estado.error}</p>
-              <p className="text-red-400 text-xs mt-0.5">
-                Asegúrate de ejecutar:{" "}
-                <code className="bg-red-900/40 px-1.5 py-0.5 rounded font-mono">
-                  uvicorn backend.main:app --reload --port 8000
-                </code>
-              </p>
+      {/* 2. Área Principal de Contenido */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Navbar Superior */}
+        <Navbar
+          busqueda={busqueda}
+          onCambiarBusqueda={setBusqueda}
+          modoDemo={estado.modoDemo}
+          cargando={cargando}
+          onRecargar={recargar}
+          onExportarCSV={handleDescargarCSV}
+        />
+
+        {/* Banner de aviso si el backend está desconectado */}
+        {estado.error && (
+          <div className="px-8 pt-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-amber-800 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-2 font-medium">
+                <span>⚠️</span> {estado.error}
+              </span>
+              <code className="bg-white border border-amber-200 px-2 py-0.5 rounded font-mono text-[11px]">
+                uvicorn backend.main:app --reload
+              </code>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* CONTENIDO PRINCIPAL                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* Contenedor de Vistas */}
+        <main className="p-8 space-y-6 flex-1 max-w-[1600px] w-full">
+          {/* VISTA 1: DASHBOARD GENERAL */}
+          {moduloActivo === "dashboard" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Tarjetas KPI */}
+              <TarjetaResumen
+                datos={estado.resumen || RESUMEN_DEMO}
+                cargando={cargando && !estado.resumen}
+              />
 
-        {/* 1. KPI Cards */}
-        <TarjetaResumen
-          datos={estado.resumen || RESUMEN_DEMO}
-          cargando={cargando && !estado.resumen}
-        />
+              {/* Recomendador Predictivo Smart Router */}
+              <TarjetaSmartRouter
+                datos={estado.smartRouter}
+                cargando={cargando && !estado.smartRouter}
+              />
 
-        {/* 2. Panel de Detección de Leads */}
-        <PanelSondeo
-          onDetectar={handleDetectar}
-          detectando={detectando}
-          ultimaDeteccion={ultimaDeteccion}
-        />
+              {/* Grid 2 Columnas: Embudo + Comparativa de CPL */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <EstadoPipeline
+                  etapas={estado.funnel}
+                  modoDemo={estado.modoDemo}
+                  cargando={cargando && estado.funnel.length === 0}
+                />
+                <GraficoCPL
+                  canales={estado.canales}
+                  modoDemo={estado.modoDemo}
+                  cargando={cargando && estado.canales.length === 0}
+                />
+              </div>
 
-        {/* 3. Funnel + CPL en grid de 2 columnas */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <EstadoPipeline
-            etapas={estado.funnel}
-            modoDemo={estado.modoDemo}
-            cargando={cargando && estado.funnel.length === 0}
-          />
-          <GraficoCPL
-            canales={estado.canales}
-            modoDemo={estado.modoDemo}
-            cargando={cargando && estado.canales.length === 0}
-          />
-        </div>
+              {/* Vista previa rápida del Pipeline */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-slate-800 font-bold text-sm">
+                    Prospectos Recientes en Pipeline
+                  </h3>
+                  <button
+                    onClick={() => setModuloActivo("pipeline")}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    Ver Pipeline Completo ({estado.leads.length}) →
+                  </button>
+                </div>
+                <TablaLeads
+                  leads={estado.leads.slice(0, 10)}
+                  cargando={cargando && estado.leads.length === 0}
+                  onAccion={handleAccionLead}
+                  onAccionLote={handleAccionLote}
+                  onVerAuditoria={(lead) => setModalAuditoria(lead)}
+                  onVerConversacion={(lead) => setModalConversacion(lead)}
+                  filtroExterno={busqueda}
+                />
+              </div>
+            </div>
+          )}
 
-        {/* 4. Pipeline de Leads */}
-        <TablaLeads
-          leads={estado.leads}
-          cargando={cargando && estado.leads.length === 0}
-          onAccion={handleAccionLead}
-          onAccionLote={handleAccionLote}
-        />
+          {/* VISTA 2: DETECCIÓN ACTIVA (SCRAPING) */}
+          {moduloActivo === "deteccion" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <PanelSondeo
+                onDetectar={handleDetectar}
+                detectando={detectando}
+                ultimaDeteccion={ultimaDeteccion}
+              />
+            </div>
+          )}
 
-        {/* Footer */}
-        <footer className="text-center text-slate-700 text-xs pb-4 border-t border-slate-800 pt-4">
-          Motor de Leads — Hackathon Dapta 2024 · Intent-Based Lead Engine + Unit Economics Tracker
+          {/* VISTA 3: PIPELINE DE PROSPECTOS */}
+          {moduloActivo === "pipeline" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <TablaLeads
+                leads={estado.leads}
+                cargando={cargando && estado.leads.length === 0}
+                onAccion={handleAccionLead}
+                onAccionLote={handleAccionLote}
+                onVerAuditoria={(lead) => setModalAuditoria(lead)}
+                onVerConversacion={(lead) => setModalConversacion(lead)}
+                filtroExterno={busqueda}
+              />
+            </div>
+          )}
+
+          {/* VISTA 4: UNIT ECONOMICS & CPL */}
+          {moduloActivo === "unit_economics" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <TarjetaSmartRouter
+                datos={estado.smartRouter}
+                cargando={cargando && !estado.smartRouter}
+              />
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <GraficoCPL
+                  canales={estado.canales}
+                  modoDemo={estado.modoDemo}
+                  cargando={cargando && estado.canales.length === 0}
+                />
+                <EstadoPipeline
+                  etapas={estado.funnel}
+                  modoDemo={estado.modoDemo}
+                  cargando={cargando && estado.funnel.length === 0}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* VISTA 5: BASE DE CONOCIMIENTO RAG (CATÁLOGO DAPTA) */}
+          {moduloActivo === "catalogo_rag" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <VistaCatalogoRAG />
+            </div>
+          )}
+        </main>
+
+        {/* Footer Admin */}
+        <footer className="px-8 py-4 border-t border-slate-200/80 bg-white text-slate-400 text-xs flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto">
+          <span>
+            © 2024 Motor de Leads — Hackathon Dapta · Intent-Based Lead Engine + Unit Economics Tracker
+          </span>
+          <span className="font-semibold text-slate-600">
+            Next.js 16 + FastAPI + SQLite WAL
+          </span>
         </footer>
       </div>
-    </main>
+
+      {/* Modales */}
+      {modalAuditoria && (
+        <ModalAuditoriaRAG
+          leadId={modalAuditoria.id}
+          apiUrl={API_URL}
+          onCerrar={() => setModalAuditoria(null)}
+        />
+      )}
+
+      {modalConversacion && (
+        <ModalConversacion
+          lead={modalConversacion}
+          onCerrar={() => setModalConversacion(null)}
+        />
+      )}
+    </div>
   );
 }

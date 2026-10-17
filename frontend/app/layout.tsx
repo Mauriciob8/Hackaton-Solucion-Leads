@@ -12,11 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Metadatos de la aplicación en español
 export const metadata: Metadata = {
-  title: "Motor de Leads — Panel de Control",
+  title: "Motor de Leads — Intent-Based Admin Dashboard",
   description:
-    "Plataforma inteligente de prospección: detecta pymes con señales de dolor reales, las contacta con micro-sondeos y mide el CPL por canal.",
+    "Plataforma inteligente de prospección: detección basada en dolor, micro-sondeos RAG y control atómico de Unit Economics.",
 };
 
 export default function RootLayout({
@@ -29,7 +28,7 @@ export default function RootLayout({
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+      <body className="min-h-full flex flex-col bg-[#f8f9fc] text-slate-800">
         {children}
       </body>
     </html>

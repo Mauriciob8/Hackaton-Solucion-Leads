@@ -1,18 +1,13 @@
 /**
- * TablaLeads.tsx — Tabla de leads con acciones del pipeline
- * ==========================================================
- * Lista todos los leads detectados con su estado actual y botones
- * de acción para avanzar en el pipeline:
- *   Detectado → [Contactar] → Contactado → [Ver respuesta] → Respondió → [Calificar] → Calificado/Rechazado
+ * TablaLeads.tsx — Pipeline interactivo de prospectos (Estilo SaaS Empresarial)
+ * ============================================================================
+ * Tabla corporativa con búsqueda local, filtros por canal y estado,
+ * badges claros, costos atómicos y botones rápidos de acción (RAG, Chat, Pipeline).
  */
 
 "use client";
 
-import { useState } from "react";
-
-// ---------------------------------------------------------------------------
-// Tipos
-// ---------------------------------------------------------------------------
+import { useState, useMemo } from "react";
 
 export interface Lead {
   id:               string;
@@ -30,6 +25,8 @@ export interface Lead {
   calificado_dapta:  number;
   score_calidad_dapta: number;
   fecha_deteccion:  string;
+  pregunta_sondeo?:    string | null;
+  propuesta_generada?: string | null;
 }
 
 interface PropsTablaLeads {
@@ -37,18 +34,17 @@ interface PropsTablaLeads {
   cargando?: boolean;
   onAccion: (leadId: string, accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
   onAccionLote?: (accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
+  onVerAuditoria?: (lead: Lead) => void;
+  onVerConversacion?: (lead: Lead) => void;
+  filtroExterno?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Configuración visual de estados
-// ---------------------------------------------------------------------------
-
-const CONFIG_ESTADO: Record<string, { etiqueta: string; clase: string }> = {
-  detectado:  { etiqueta: "Detectado",  clase: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
-  contactado: { etiqueta: "Contactado", clase: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-  respondio:  { etiqueta: "Respondió",  clase: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  calificado: { etiqueta: "Calificado ✅", clase: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  rechazado:  { etiqueta: "Rechazado",  clase: "bg-red-500/10 text-red-400 border-red-500/20" },
+const CONFIG_ESTADO: Record<string, { etiqueta: string; clase: string; dot: string }> = {
+  detectado:  { etiqueta: "Detectado",  clase: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
+  contactado: { etiqueta: "Contactado", clase: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  respondio:  { etiqueta: "Respondió",  clase: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  calificado: { etiqueta: "Calificado ✅", clase: "bg-emerald-50 text-emerald-800 border-emerald-200 font-bold", dot: "bg-emerald-500" },
+  rechazado:  { etiqueta: "Rechazado",  clase: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
 };
 
 const ICONOS_CANAL: Record<string, string> = {
@@ -57,19 +53,23 @@ const ICONOS_CANAL: Record<string, string> = {
   formulario_web: "🌐",
 };
 
-// ---------------------------------------------------------------------------
-// Componente principal
-// ---------------------------------------------------------------------------
-
-export default function TablaLeads({ leads, cargando, onAccion, onAccionLote }: PropsTablaLeads) {
-  // IDs de leads con acción en progreso
+export default function TablaLeads({
+  leads,
+  cargando,
+  onAccion,
+  onAccionLote,
+  onVerAuditoria,
+  onVerConversacion,
+  filtroExterno = "",
+}: PropsTablaLeads) {
   const [enProgreso, setEnProgreso] = useState<Set<string>>(new Set());
   const [loteEnProgreso, setLoteEnProgreso] = useState<string | null>(null);
 
-  async function ejecutarAccion(
-    leadId: string,
-    accion: "contactar" | "respuesta" | "calificar"
-  ) {
+  // Filtros locales
+  const [filtroCanal, setFiltroCanal] = useState<string>("");
+  const [filtroEstado, setFiltroEstado] = useState<string>("");
+
+  async function ejecutarAccion(leadId: string, accion: "contactar" | "respuesta" | "calificar") {
     setEnProgreso(prev => new Set(prev).add(leadId));
     try {
       await onAccion(leadId, accion);
@@ -92,16 +92,33 @@ export default function TablaLeads({ leads, cargando, onAccion, onAccionLote }: 
     }
   }
 
+  // Filtrado de leads
+  const leadsFiltrados = useMemo(() => {
+    return leads.filter((lead) => {
+      const coincideBusqueda =
+        !filtroExterno ||
+        lead.nombre_negocio.toLowerCase().includes(filtroExterno.toLowerCase()) ||
+        lead.sector.toLowerCase().includes(filtroExterno.toLowerCase()) ||
+        (lead.ciudad && lead.ciudad.toLowerCase().includes(filtroExterno.toLowerCase())) ||
+        lead.senal_dolor.toLowerCase().includes(filtroExterno.toLowerCase());
+
+      const coincideCanal = !filtroCanal || lead.canal === filtroCanal;
+      const coincideEstado = !filtroEstado || lead.estado === filtroEstado;
+
+      return coincideBusqueda && coincideCanal && coincideEstado;
+    });
+  }, [leads, filtroExterno, filtroCanal, filtroEstado]);
+
   const cantDetectados = leads.filter(l => l.estado === "detectado").length;
   const cantContactados = leads.filter(l => l.estado === "contactado").length;
   const cantRespondieron = leads.filter(l => l.estado === "respondio").length;
 
   if (cargando) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-3">
-        <div className="h-5 bg-slate-800 rounded w-36 cargando" />
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-14 bg-slate-800/50 rounded cargando" />
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-3">
+        <div className="h-6 bg-slate-100 rounded w-48 cargando" />
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-14 bg-slate-50 rounded-xl cargando" />
         ))}
       </div>
     );
@@ -109,140 +126,198 @@ export default function TablaLeads({ leads, cargando, onAccion, onAccionLote }: 
 
   if (!leads || leads.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 text-center">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center shadow-xs">
         <p className="text-4xl mb-3">🔍</p>
-        <p className="text-slate-300 font-medium">No hay leads detectados aún</p>
-        <p className="text-slate-500 text-sm mt-1">
-          Usa el Panel de Detección para encontrar pymes con señales de dolor reales.
+        <p className="text-slate-800 font-bold text-sm">No hay prospectos en el sistema</p>
+        <p className="text-slate-500 text-xs mt-1">
+          Utiliza el módulo de Detección Activa para extraer negocios con señales de dolor.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
-      {/* Encabezado */}
-      <div className="px-6 py-4 border-b border-slate-800 flex flex-wrap gap-4 items-center justify-between">
+    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+      {/* Barra de control superior */}
+      <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/50">
         <div>
-          <h2 className="text-slate-100 font-semibold text-base">Pipeline de Leads</h2>
-          <p className="text-slate-400 text-xs mt-0.5">{leads.length} lead{leads.length !== 1 ? "s" : ""} en el sistema</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-slate-900 font-bold text-base">Pipeline de Prospectos</h2>
+            <span className="text-xs font-semibold bg-white text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full shadow-2xs">
+              {leadsFiltrados.length} de {leads.length}
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-0.5">Gestión y avance del ciclo de conversión</p>
         </div>
 
-        {/* Acciones en lote */}
-        {onAccionLote && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-500 text-xs font-medium mr-1">Procesar lote:</span>
-            {cantDetectados > 0 && (
-              <button
-                onClick={() => ejecutarAccionLote("contactar")}
-                disabled={loteEnProgreso !== null}
-                className="text-xs bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {loteEnProgreso === "contactar" ? "⏳ Procesando..." : `📤 Contactar Todos (${cantDetectados})`}
-              </button>
-            )}
-            {cantContactados > 0 && (
-              <button
-                onClick={() => ejecutarAccionLote("respuesta")}
-                disabled={loteEnProgreso !== null}
-                className="text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {loteEnProgreso === "respuesta" ? "⏳ Procesando..." : `💬 Simular Respuestas (${cantContactados})`}
-              </button>
-            )}
-            {cantRespondieron > 0 && (
-              <button
-                onClick={() => ejecutarAccionLote("calificar")}
-                disabled={loteEnProgreso !== null}
-                className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {loteEnProgreso === "calificar" ? "⏳ Procesando..." : `✅ Calificar Todos (${cantRespondieron})`}
-              </button>
-            )}
-          </div>
-        )}
+        {/* Filtros locales */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filtro Canal */}
+          <select
+            value={filtroCanal}
+            onChange={(e) => setFiltroCanal(e.target.value)}
+            className="text-xs bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">Todos los canales</option>
+            <option value="whatsapp">💬 WhatsApp</option>
+            <option value="email">📧 Email</option>
+            <option value="formulario_web">🌐 Formulario</option>
+          </select>
+
+          {/* Filtro Estado */}
+          <select
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value)}
+            className="text-xs bg-white border border-slate-200 text-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">Todos los estados</option>
+            <option value="detectado">Detectados</option>
+            <option value="contactado">Contactados</option>
+            <option value="respondio">Respondieron</option>
+            <option value="calificado">Calificados</option>
+          </select>
+
+          {/* Acciones en lote */}
+          {onAccionLote && (
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+              {cantDetectados > 0 && (
+                <button
+                  onClick={() => ejecutarAccionLote("contactar")}
+                  disabled={loteEnProgreso !== null}
+                  className="text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loteEnProgreso === "contactar" ? "⏳..." : `📤 Contactar (${cantDetectados})`}
+                </button>
+              )}
+              {cantContactados > 0 && (
+                <button
+                  onClick={() => ejecutarAccionLote("respuesta")}
+                  disabled={loteEnProgreso !== null}
+                  className="text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loteEnProgreso === "respuesta" ? "⏳..." : `💬 Simular Resp. (${cantContactados})`}
+                </button>
+              )}
+              {cantRespondieron > 0 && (
+                <button
+                  onClick={() => ejecutarAccionLote("calificar")}
+                  disabled={loteEnProgreso !== null}
+                  className="text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loteEnProgreso === "calificar" ? "⏳..." : `✅ Calificar (${cantRespondieron})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla SaaS */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/60 text-slate-400 uppercase text-xs">
-            <tr>
-              <th className="py-3 px-4">Negocio</th>
-              <th className="py-3 px-4">Canal</th>
-              <th className="py-3 px-4">Señal de Dolor</th>
-              <th className="py-3 px-4 text-center">Estado</th>
-              <th className="py-3 px-4 text-right">Costo Total</th>
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
+              <th className="py-3 px-4">Empresa & Sector</th>
+              <th className="py-3 px-3">Canal</th>
+              <th className="py-3 px-4">Señal de Dolor (Pública)</th>
+              <th className="py-3 px-3 text-center">Estado</th>
+              <th className="py-3 px-3 text-right">Inversión</th>
+              <th className="py-3 px-3 text-center">Inspección RAG</th>
               <th className="py-3 px-4 text-center">Acción</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {leads.map((lead) => {
+          <tbody className="divide-y divide-slate-100">
+            {leadsFiltrados.map((lead) => {
               const configEstado = CONFIG_ESTADO[lead.estado] || {
                 etiqueta: lead.estado,
-                clase: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+                clase: "bg-slate-100 text-slate-700 border-slate-200",
+                dot: "bg-slate-400",
               };
               const costoTotal = (lead.costo_scraping || 0) + (lead.costo_tokens || 0) + (lead.costo_envio || 0);
               const ocupado = enProgreso.has(lead.id);
 
               return (
-                <tr key={lead.id} className="hover:bg-slate-800/30 transition-colors">
-                  {/* Negocio */}
+                <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
+                  {/* Empresa & Sector */}
                   <td className="py-3.5 px-4">
-                    <p className="font-medium text-slate-100 truncate max-w-[160px]">
+                    <p className="font-bold text-slate-900 truncate max-w-[170px]">
                       {lead.nombre_negocio}
                     </p>
-                    <p className="text-slate-500 text-xs capitalize">
+                    <p className="text-slate-400 text-[11px] capitalize">
                       {lead.sector} {lead.ciudad ? `• ${lead.ciudad}` : ""}
                     </p>
                   </td>
 
                   {/* Canal */}
-                  <td className="py-3.5 px-4">
-                    <span className="text-slate-300 text-xs">
-                      {ICONOS_CANAL[lead.canal] || "📡"} {lead.canal.replace("_", " ")}
+                  <td className="py-3.5 px-3">
+                    <span className="inline-flex items-center gap-1.5 text-slate-700 font-medium text-xs bg-slate-50 border border-slate-200/80 px-2 py-1 rounded-lg">
+                      <span>{ICONOS_CANAL[lead.canal] || "📡"}</span>
+                      <span className="capitalize">{lead.canal.replace("_", " ")}</span>
                     </span>
                   </td>
 
                   {/* Señal de dolor */}
-                  <td className="py-3.5 px-4 max-w-[220px]">
-                    <p className="text-slate-400 text-xs truncate" title={lead.senal_dolor}>
-                      {lead.senal_dolor.substring(0, 80)}…
+                  <td className="py-3.5 px-4 max-w-[260px]">
+                    <p className="text-slate-600 text-xs line-clamp-2 leading-relaxed" title={lead.senal_dolor}>
+                      {lead.senal_dolor}
                     </p>
-                    <p className="text-slate-600 text-xs capitalize mt-0.5">
+                    <span className="inline-block mt-1 text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded capitalize">
                       {lead.tipo_senal.replace(/_/g, " ")}
-                    </p>
+                    </span>
                   </td>
 
                   {/* Estado */}
-                  <td className="py-3.5 px-4 text-center">
+                  <td className="py-3.5 px-3 text-center">
                     <span
-                      className={`text-xs px-2.5 py-1 rounded-full border ${configEstado.clase}`}
+                      className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${configEstado.clase}`}
                     >
+                      <span className={`w-1.5 h-1.5 rounded-full ${configEstado.dot}`} />
                       {configEstado.etiqueta}
                     </span>
                     {lead.estado === "calificado" && lead.score_calidad_dapta > 0 && (
-                      <p className="text-emerald-500 text-xs mt-0.5">
+                      <p className="text-emerald-700 font-bold text-[11px] mt-0.5">
                         Score: {(lead.score_calidad_dapta * 100).toFixed(0)}%
                       </p>
                     )}
                   </td>
 
-                  {/* Costo total */}
-                  <td className="py-3.5 px-4 text-right">
-                    <span className="text-amber-400 text-xs font-mono">
+                  {/* Inversión total */}
+                  <td className="py-3.5 px-3 text-right">
+                    <span className="text-slate-800 text-xs font-mono font-bold">
                       ${costoTotal.toFixed(4)}
                     </span>
-                    <span className="text-slate-600 text-xs ml-1">USD</span>
+                    <span className="text-slate-400 text-[10px] ml-1">USD</span>
                   </td>
 
-                  {/* Botón de acción */}
+                  {/* Inspección RAG & Chat */}
+                  <td className="py-3.5 px-3 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => onVerAuditoria?.(lead)}
+                        title="Ver trazabilidad RAG completa"
+                        className="text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                      >
+                        🔍 RAG
+                      </button>
+                      {(lead.estado === "respondio" || lead.estado === "calificado") && (
+                        <button
+                          onClick={() => onVerConversacion?.(lead)}
+                          title="Ver chat interactivo WhatsApp"
+                          className="text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                        >
+                          💬 Chat
+                        </button>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Botón de acción contextual */}
                   <td className="py-3.5 px-4 text-center">
                     {lead.estado === "detectado" && (
                       <button
                         onClick={() => ejecutarAccion(lead.id, "contactar")}
                         disabled={ocupado}
-                        className="text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                       >
                         {ocupado ? "⏳" : "📤 Contactar"}
                       </button>
@@ -251,7 +326,7 @@ export default function TablaLeads({ leads, cargando, onAccion, onAccionLote }: 
                       <button
                         onClick={() => ejecutarAccion(lead.id, "respuesta")}
                         disabled={ocupado}
-                        className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                       >
                         {ocupado ? "⏳" : "💬 Simular Resp."}
                       </button>
@@ -260,13 +335,13 @@ export default function TablaLeads({ leads, cargando, onAccion, onAccionLote }: 
                       <button
                         onClick={() => ejecutarAccion(lead.id, "calificar")}
                         disabled={ocupado}
-                        className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                       >
                         {ocupado ? "⏳" : "✅ Calificar"}
                       </button>
                     )}
                     {(lead.estado === "calificado" || lead.estado === "rechazado") && (
-                      <span className="text-slate-600 text-xs">Finalizado</span>
+                      <span className="text-slate-400 text-xs font-medium">Completado</span>
                     )}
                   </td>
                 </tr>

@@ -173,6 +173,19 @@ def _encontrar_solucion_por_sector_y_dolor(
     return mejores_candidatos[0][1]
 
 
+def obtener_solucion_para_lead(
+    sector: str,
+    tipo_senal: str,
+    opcion_elegida: str = "A",
+) -> Optional[dict]:
+    """
+    Función pública que expone el matching del catálogo Dapta.
+    Usada por el endpoint de auditoría RAG para mostrar qué ficha
+    exacta del catálogo fue consultada al generar la propuesta.
+    """
+    return _encontrar_solucion_por_sector_y_dolor(sector, tipo_senal, opcion_elegida)
+
+
 # ---------------------------------------------------------------------------
 # Funciones públicas del motor RAG
 # ---------------------------------------------------------------------------

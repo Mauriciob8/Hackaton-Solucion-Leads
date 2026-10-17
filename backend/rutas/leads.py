@@ -16,7 +16,11 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import csv
+import io
+
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.base_datos.conexion import (
@@ -35,6 +39,7 @@ from backend.servicios.rag_agente import (
     seleccionar_micro_sondeo,
     generar_propuesta_personalizada,
     simular_calificacion_dapta,
+    obtener_solucion_para_lead,
 )
 from backend.servicios.contacto import enviar_micro_sondeo, enviar_propuesta
 
@@ -397,3 +402,108 @@ def procesar_lote(solicitud: SolicitudLote):
         "errores": errores,
         "ids_procesados": resultados,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/leads/calificados/exportar-csv — Exportar leads calificados en CSV
+# ---------------------------------------------------------------------------
+
+@router.get("/calificados/exportar-csv", summary="Exportar leads calificados como CSV")
+def exportar_calificados_csv():
+    """
+    Descarga un archivo CSV con todos los leads que fueron calificados por Dapta.
+    Incluye: nombre del negocio, sector, ciudad, canal, score, costos y contacto.
+    Cierra el ciclo del producto: permite transferir los leads al CRM de ventas.
+    """
+    leads_calificados = listar_leads(pagina=1, tamano=1000, estado="calificado")
+
+    campos_csv = [
+        "id", "nombre_negocio", "sector", "ciudad", "canal",
+        "telefono", "email", "sitio_web",
+        "score_calidad_dapta", "senal_dolor", "tipo_senal",
+        "opcion_respondida", "costo_scraping", "costo_tokens", "costo_envio",
+        "fecha_deteccion", "fecha_contacto", "fecha_respuesta",
+    ]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=campos_csv, extrasaction="ignore")
+    writer.writeheader()
+    for lead in leads_calificados:
+        writer.writerow({k: lead.get(k, "") for k in campos_csv})
+
+    output.seek(0)
+    nombre_archivo = f"leads_calificados_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/leads/{id}/auditoria — Auditoría RAG de un lead (trazabilidad)
+# ---------------------------------------------------------------------------
+
+@router.get("/{lead_id}/auditoria", summary="Auditoría RAG completa de un lead")
+def auditoria_rag(lead_id: str):
+    """
+    Retorna el desglose completo del razonamiento del sistema para un lead:
+      1. Fragmento público detectado: la señal de dolor original.
+      2. Documento consultado en el catálogo Dapta: ficha exacta usada.
+      3. Micro-sondeo enviado: la pregunta exacta despachada al prospecto.
+      4. Opción respondida por el prospecto.
+      5. Propuesta generada: el mensaje final enviado.
+
+    Demuestra al jurado que el sistema tiene trazabilidad completa y no alucina.
+    """
+    lead = obtener_lead_por_id(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail=f"Lead '{lead_id}' no encontrado")
+
+    # Recuperar la solución del catálogo que fue utilizada
+    solucion = obtener_solucion_para_lead(
+        sector=lead["sector"],
+        tipo_senal=lead["tipo_senal"],
+        opcion_elegida=lead.get("opcion_respondida") or "A",
+    )
+
+    auditoria = {
+        "lead_id": lead_id,
+        "nombre_negocio": lead["nombre_negocio"],
+        "sector": lead["sector"],
+        "estado_actual": lead["estado"],
+        # Bloque 1: señal de dolor detectada
+        "fragmento_detectado": {
+            "texto": lead["senal_dolor"],
+            "tipo_senal": lead["tipo_senal"],
+            "fuente_deteccion": lead.get("fuente_deteccion", "—"),
+        },
+        # Bloque 2: ficha del catálogo Dapta consultada
+        "solucion_consultada": {
+            "id": solucion["id"] if solucion else None,
+            "titulo": solucion["titulo"] if solucion else "Sin coincidencia en catálogo",
+            "categoria": solucion["categoria"] if solucion else None,
+            "caso_exito": solucion["caso_exito"] if solucion else None,
+            "resultado_tipico": solucion["resultado_tipico"] if solucion else None,
+            "precio_referencial_usd": solucion["precio_referencial_usd"] if solucion else None,
+        },
+        # Bloque 3: conversación generada
+        "conversacion": {
+            "pregunta_sondeo": lead.get("pregunta_sondeo") or "Aún no contactado",
+            "opcion_respondida": lead.get("opcion_respondida") or "Sin respuesta",
+            "propuesta_generada": lead.get("propuesta_generada") or "Propuesta aún no generada",
+        },
+        # Costos de trazabilidad
+        "costos_auditoria": {
+            "costo_scraping_usd": lead.get("costo_scraping", 0.0),
+            "costo_tokens_usd": lead.get("costo_tokens", 0.0),
+            "costo_envio_usd": lead.get("costo_envio", 0.0),
+            "costo_total_usd": (
+                (lead.get("costo_scraping") or 0.0)
+                + (lead.get("costo_tokens") or 0.0)
+                + (lead.get("costo_envio") or 0.0)
+            ),
+        },
+    }
+
+    return auditoria

@@ -969,11 +969,40 @@ profesional (Dark Mode forzado) y distribución de alta densidad de información
      * Canal asignado con ícono descriptivo (📧, 💬, 🌐).
      * Insignia de estado actual (Detectado, Contactado, Respondió, Calificado).
      * Score de calidad asignado por Dapta (ej: 0.87 / 1.0).
+     * Columna de Auditoría RAG y Conversación en Vivo:
+       - Botón '🔍 RAG': Abre el Modal de Inspección RAG con trazabilidad completa.
+       - Botón '💬 Chat': Abre el simulador de chat en vivo con vista WhatsApp.
    - Botones de acción contextuales:
      * '📤 Contactar': Dispara el micro-sondeo.
      * '💬 Simular Resp.': Simula respuesta 'A' o 'B' del cliente y genera propuesta.
      * '✅ Calificar': Remite el lead al Agente Calificador de Dapta.
      * Botones de ejecución en lote: 'Contactar todos', 'Calificar todos'.
+
+6. TarjetaSmartRouter.tsx (RECOMENDADOR PREDICTIVO DE CANALES)
+   - Motor de decisión estratégica que evalúa en tiempo real los resultados de CPL por canal.
+   - Recomienda la reasignación de presupuesto al canal más rentable.
+   - Muestra el canal ganador, el CPL Calificado obtenido y el porcentaje exacto de ahorro
+     financiero frente al canal alternativo menos eficiente.
+
+7. ModalAuditoriaRAG.tsx (MODAL DE INSPECCIÓN RAG — AUDITABILIDAD Y CONFIANZA)
+   - Ventana emergente que desglosa el 'razonamiento' algorítmico del sistema para cualquier prospecto:
+     1. Fragmento público detectado: Texto íntegro de la reseña, vacante o auditoría original.
+     2. Documento consultado en Dapta: Ficha exacta del catálogo (ej: sol-001) y caso de éxito vinculado.
+     3. Mensaje final generado: El texto verificado de la propuesta y micro-sondeo despachados.
+     4. Desglose atómico de costos imputados (scraping, tokens LLM y envío).
+   - Demuestra al jurado que el sistema no alucina y que cada propuesta tiene trazabilidad completa.
+
+8. ModalConversacion.tsx (SIMULADOR DE CONVERSACIÓN EN VIVO — CHAT PREVIEW)
+   - Interfaz visual en formato smartphone oscuro con burbujas de chat estilo WhatsApp:
+     * Burbuja 1 (Sistema): El micro-sondeo inicial con opciones cerradas A o B.
+     * Burbuja 2 (Cliente): El prospecto respondiendo (ej: 'A' o 'B').
+     * Burbuja 3 (Sistema): La propuesta automática con el caso de éxito y precio oficial de Dapta.
+   - Aumenta radicalmente el impacto en demos y presentaciones ante jurados o clientes.
+
+9. EXPORTACIÓN DIRECTA DE LEADS CALIFICADOS (CRM / CSV)
+   - Botón directo en la barra superior del dashboard: '⬇️ Exportar CSV'.
+   - Descarga un archivo estructurado con todos los leads aprobados por Dapta, listos
+     para ser transferidos a HubSpot, Salesforce o canal comercial humano.
 
 ================================================================================
 12. API REFERENCE COMPLETA
@@ -1047,6 +1076,22 @@ PIPELINE DE LEADS (/api/leads)
         "nuevo_estado": "calificado"
       }
 
+  GET /api/leads/calificados/exportar-csv
+    • Descripción: Genera y descarga dinámicamente un archivo CSV con todos los prospectos calificados por Dapta.
+    • Respuesta 200: Stream de texto CSV (Content-Disposition: attachment; filename=leads_calificados_YYYYMMDD_HHMMSS.csv)
+
+  GET /api/leads/{id}/auditoria
+    • Descripción: Retorna la trazabilidad RAG completa del lead (fragmento detectado, ficha Dapta, mensajes y costos atómicos).
+    • Respuesta 200:
+      {
+        "lead_id": "uuid",
+        "nombre_negocio": "...",
+        "fragmento_detectado": {"texto": "...", "tipo_senal": "...", "fuente_deteccion": "..."},
+        "solucion_consultada": {"id": "sol-001", "titulo": "...", "caso_exito": "...", "precio_referencial_usd": 89},
+        "conversacion": {"pregunta_sondeo": "...", "opcion_respondida": "A", "propuesta_generada": "..."},
+        "costos_auditoria": {"costo_scraping_usd": 0.0001, "costo_tokens_usd": 0.0009, "costo_envio_usd": 0.07, "costo_total_usd": 0.071}
+      }
+
 ────────────────────────────────────────────────────────────────────────────────
 MÉTRICAS Y UNIT ECONOMICS (/api/metricas)
 ────────────────────────────────────────────────────────────────────────────────
@@ -1073,6 +1118,19 @@ MÉTRICAS Y UNIT ECONOMICS (/api/metricas)
         "cpl_promedio_global": 0.195,
         "canal_mas_eficiente": "Formulario Web",
         "mejor_cpl_calificado": 0.65
+      }
+
+  GET /api/metricas/smart-router
+    • Descripción: Recomendación predictiva en tiempo real sobre qué canal ofrece el menor CPL y mayor ROI.
+    • Respuesta 200:
+      {
+        "hay_recomendacion": true,
+        "canal_recomendado": "WhatsApp Cloud API",
+        "cpl_recomendado": 0.85,
+        "canal_alternativo": "Email Transaccional",
+        "cpl_alternativo": 1.10,
+        "ahorro_porcentual": 22.7,
+        "mensaje": "🚀 Recomendación del Sistema: Reasigne el presupuesto a WhatsApp Cloud API..."
       }
 
 ────────────────────────────────────────────────────────────────────────────────

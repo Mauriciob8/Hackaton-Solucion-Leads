@@ -1,0 +1,63 @@
+1. Arquitectura General del Layout (UI/UX)
+Plaintext
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Logo Motor Leads]   │ [🔍 Buscar prospecto, sector, canal...]   [🔔] [⚙️] [👤 Admin Pyme] │ (Navbar Superior)
+├──────────────────────┼─────────────────────────────────────────────────────────────────┤
+│ 📌 MENÚ PRINCIPAL    │ 📊 VISTA ACTIVA / CONTENIDO CENTRAL                            │
+│  • 🏠 Dashboard      │  ┌────────────────────────────────────────────────────────────┐  │
+│  • 🎯 Detección      │  │ Fila 1: Tarjetas de KPIs Clave (Leads, CPL, Gasto, % Aprob)│  │
+│  • 🗂️ Pipeline Leads │  ├─────────────────────────────┬──────────────────────────────┤  │
+│  • 📈 Unit Economics │  │ Fila 2: Embudo Conversión   │ Tabla Comparativa de CPL     │  │
+│  • 🤖 Agente RAG/Dapta│ ├─────────────────────────────┴──────────────────────────────┤  │
+│                      │  │ Fila 3: Pipeline / Tabla Interactiva con Acciones & Chat   │  │
+│ ⚙️ CONFIGURACIÓN     │  └────────────────────────────────────────────────────────────┘  │
+│  • 🔌 Fuentes / APIs │                                                                 │
+└──────────────────────┴─────────────────────────────────────────────────────────────────┘
+2. Estructura del Menú Lateral (Sidebar)
+Para organizar las funciones sin saturar la pantalla principal, dividimos la plataforma en módulos claros: 
+Sección "Operaciones" (Core del Hackathon):
+Dashboard General: Vista ejecutiva con métricas consolidadas, funnel de conversión y recomendación de Smart Router. 
+Detección Activa (Scraping): Módulo para lanzar búsquedas por sector, ciudad y fuentes (Google Maps, Portales de Empleo, Web). 
+Pipeline de Prospectos: Tabla completa y gestión de estados (Detectado, Contactado, Respondió, Calificado). 
+Sección "Inteligencia & Rendimiento":
+Unit Economics & CPL: Comparativa profunda de costos marginales por canal (Email vs. WhatsApp vs. Formulario Web). 
+Base de Conocimiento (RAG): Vista del catálogo de Dapta (catalogo_dapta.json) con las soluciones y casos de éxito vinculados. 
+Auditoría & Logs: Trazabilidad de decisiones tomadas por el agente y respuestas enviadas. 
+Pie de Menú (Estado del Sistema):
+Estado de conexión con el Agente Calificador de Dapta (En línea / Simulado). 
+Tarifa activa de consumo de tokens y pasarelas. 
+3. Distribución y Diseño de las Secciones en el Dashboard
+Siguiendo el estilo de las referencias claras (tarjetas blancas con bordes redondeados sutiles, sombras suaves shadow-sm, iconos en cajas de color pastel y tipografía limpia): 
+A. Barra Superior (Header / Navbar)
+Buscador global: Campo rápido para filtrar prospectos por nombre o teléfono. 
+Selector de Entorno: Botón tipo chip para alternar entre Modo Demo (195 leads) y Modo Real (En vivo). 
+Botones de acción rápida: "Exportar CSV" y "Actualizar Datos". 
+B. Fila 1: Tarjetas de Métricas Ejecutivas (KPIs)
+Cuatro tarjetas rectangulares blancas con acentos de color suave: 
+Leads Detectados: Total acumulado con desglose de fuentes gratuitas. 
+Leads Calificados por Dapta: Cantidad aprobada junto al porcentaje de aprobación. 
+Mejor CPL Calificado: Canal ganador destacado con una insignia verde o ámbar. 
+Gasto Total Operativo: Suma atómica en dólares (scraping + tokens LLM + envíos). 
+C. Fila 2: El Panel de Detección (Scraper Centralizado)
+Convertir el bloque actual en una tarjeta colapsable o barra de control limpia:
+Selectores desplegables alineados horizontalmente: Sector, Ciudad, Canal Inicial y Límite de Prospectos. 
+Botón principal con estilo corporativo ("Ejecutar Búsqueda de Dolor"). 
+D. Fila 3: El Núcleo de Decisión (Embudo + Comparativa de CPL)
+Dividido en dos columnas (60% / 40%): 
+Izquierda (Comparativa CPL por Canal): Tabla limpia con filas para Email, WhatsApp y Formulario Web, mostrando costo por mensaje, tasa de respuesta, CPL Bruto y CPL Calificado con barras de progreso sutiles. 
+Derecha (Funnel y Smart Router): El embudo visual en 4 etapas (Detectado $\rightarrow$ Contactado $\rightarrow$ Respondió $\rightarrow$ Calificado) coronado por la tarjeta de recomendación de reasignación de presupuesto. 
+E. Fila 4: Pipeline y Gestión de Contactos (Tabla Dinámica)
+Una tabla estilo SaaS con paginación: 
+Columnas: Empresa & Sector, Canal asignado, Dolor Detectado (con badge que indica si es reseña, vacante o web), Estado actual, Costo Acumulado y Acciones. 
+Botones de Interacción Rápida:
+Botón para disparar micro-sondeo. 
+Botón "Chat" que abre el drawer lateral o modal mostrando la conversación interactiva con el prospecto. 
+Botón "RAG / Auditoría" para inspeccionar la solución del catálogo que el sistema le ofreció. 
+4. Guía de Paleta de Colores y Estilo (Tailwind CSS)
+Fondo Principal: bg-slate-50 o bg-[#f8f9fc] (reemplazando el fondo negro completo actual). 
+Contenedores y Tarjetas: bg-white border border-slate-200/80 rounded-2xl shadow-sm. 
+Sidebar: Puede ser oscura clásica (bg-slate-900 text-slate-300, como AdminKit) o blanca minimalista (bg-white border-r border-slate-200, como Sneat o TailAdmin). 
+Acentos de Color:
+Primario: indigo-600 o blue-600 para botones y selecciones activas. 
+Éxito (Calificados): emerald-500 con fondos emerald-50. 
+Alertas / Dolor detectado: amber-500 con fondos amber-50. 

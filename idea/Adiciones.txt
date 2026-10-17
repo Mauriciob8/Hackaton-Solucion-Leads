@@ -1,0 +1,23 @@
+A. El "Modal de Inspección RAG" (Auditabilidad y Confianza)
+* Qué es: En la tabla de prospectos (en la columna "Acción"), añade un botón que diga "Ver Auditoría / RAG". 
+* Qué muestra al hacer clic: Una ventana emergente que desglosa el "razonamiento" del sistema:
+1. Fragmento público detectado: La reseña o vacante original. 
+2. Documento consultado en Dapta: La ficha exacta del catálogo (sol-001) y el caso de éxito utilizado. 
+3. Mensaje final generado: El texto exacto de la propuesta enviada. 
+* Por qué impacta: Demuestra al jurado que el sistema no alucina y que cada propuesta tiene trazabilidad completa. 
+B. Selector o Simulador de "Conversación en Vivo" (Chat Preview)
+* Qué es: Una vista tipo teléfono (burbujas de WhatsApp) para un prospecto seleccionado. 
+* Qué hace: Muestra la conversación real simulada:
+o Burbuja 1 (Sistema): El micro-sondeo inicial con opciones A o B. 
+o Burbuja 2 (Cliente): El prospecto respondiendo "B". 
+o Burbuja 3 (Sistema): La propuesta automática con el caso de éxito y precio de Dapta. 
+* Por qué impacta: En una presentación de hackatón, ver el chat visualmente convence 10 veces más que ver filas en una tabla de base de datos.
+C. Recomendador Predictivo de Canales (El "Smart Router")
+* Qué es: Una tarjeta en el dashboard que analice los resultados actuales y recomiende acciones basadas en rentabilidad. 
+* Ejemplo visual:
+"?? Recomendación del Sistema: Para el sector Restaurantes en Bogotá, reasigne el 100% del presupuesto a WhatsApp Cloud API. Genera un CPL Calificado 22% menor que el Email Transaccional." 
+* Por qué impacta: Convierte la plataforma de un simple visualizador de datos a un sistema de toma de decisiones estratégicas para el negocio.
+D. Exportación Directa de Leads Calificados (CRM / CSV)
+* Qué es: Un botón simple en la cabecera: "Descargar Leads Calificados (CSV)" o "Enviar a CRM de Ventas".
+* Por qué impacta: Cierra el ciclo de producto para el cliente, mostrando qué pasa después de que Dapta aprueba el lead. 
+
