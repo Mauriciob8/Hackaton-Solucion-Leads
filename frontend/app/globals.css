@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* -----------------------------------------------------------------------
+   Motor de Leads — Estilos globales
+   Dark mode forzado siempre (no depende de preferencia del sistema)
+   ----------------------------------------------------------------------- */
+
+:root {
+  --fondo:          #020617;   /* slate-950 */
+  --fondo-tarjeta:  #0f172a;   /* slate-900 */
+  --fondo-borde:    #1e293b;   /* slate-800 */
+  --texto-primario: #f1f5f9;   /* slate-100 */
+  --texto-secundario: #94a3b8; /* slate-400 */
+  --acento-indigo:  #6366f1;   /* indigo-500 */
+  --acento-emerald: #10b981;   /* emerald-500 */
+  --acento-amber:   #f59e0b;   /* amber-500 */
+  --acento-blue:    #3b82f6;   /* blue-500 */
+}
+
+body {
+  background: var(--fondo);
+  color: var(--texto-primario);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Scrollbar personalizada para el dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--fondo-borde);
+}
+::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* slate-600 */
+}
+
+/* Animación de pulso para estados de carga */
+@keyframes pulso-suave {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.cargando {
+  animation: pulso-suave 1.5s ease-in-out infinite;
+}

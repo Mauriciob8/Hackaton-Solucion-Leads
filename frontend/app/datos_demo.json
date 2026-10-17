@@ -1,0 +1,52 @@
+{
+  "canales": [
+    {
+      "nombre": "Email Transaccional",
+      "canal_id": "email",
+      "total_detectados": 45,
+      "total_contactados": 45,
+      "total_respondieron": 8,
+      "total_calificados": 3,
+      "costo_operativo_total": 0.0328,
+      "tasa_respuesta": 17.8,
+      "tasa_calificacion": 37.5,
+      "cpl_bruto": 0.12,
+      "cpl_calificado": 1.10,
+      "prospectos": 45
+    },
+    {
+      "nombre": "WhatsApp Cloud API",
+      "canal_id": "whatsapp",
+      "total_detectados": 120,
+      "total_contactados": 120,
+      "total_respondieron": 34,
+      "total_calificados": 14,
+      "costo_operativo_total": 4.248,
+      "tasa_respuesta": 28.3,
+      "tasa_calificacion": 41.2,
+      "cpl_bruto": 0.25,
+      "cpl_calificado": 0.85,
+      "prospectos": 120
+    },
+    {
+      "nombre": "Formulario Web",
+      "canal_id": "formulario_web",
+      "total_detectados": 30,
+      "total_contactados": 30,
+      "total_respondieron": 7,
+      "total_calificados": 5,
+      "costo_operativo_total": 0.009,
+      "tasa_respuesta": 23.3,
+      "tasa_calificacion": 71.4,
+      "cpl_bruto": 0.05,
+      "cpl_calificado": 0.65,
+      "prospectos": 30
+    }
+  ],
+  "funnel": [
+    { "etapa": "Detectados",   "cantidad": 195, "porcentaje": 100.0, "color": "#6366f1" },
+    { "etapa": "Contactados",  "cantidad": 195, "porcentaje": 100.0, "color": "#f59e0b" },
+    { "etapa": "Respondieron", "cantidad": 49,  "porcentaje": 25.1,  "color": "#3b82f6" },
+    { "etapa": "Calificados",  "cantidad": 22,  "porcentaje": 44.9,  "color": "#10b981" }
+  ]
+}
