@@ -1318,7 +1318,8 @@ PASO 6: CONFIGURACIÓN DE VARIABLES DE ENTORNO (OPCIONAL)
   COSTO_WHATSAPP=0.0350
   COSTO_EMAIL=0.0002
   OPENAI_API_KEY=sk-tu-api-key-aqui
-  MODO_SIMULACION_DAPTA=true
+  DAPTA_AGENT_ID=a2f51962-1754-4ff4-a5d3-0082625607cc
+  DAPTA_AGENT_EXECUTE_URL=https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc/execute
   ```
 
 ================================================================================
@@ -1354,10 +1355,13 @@ se deben implementar las siguientes conexiones en cada subsistema:
    - Reemplazar SQLite por una instancia de PostgreSQL en Supabase, AWS RDS o Neon.
    - Actualizar la URL de conexión en config.py: `postgresql://user:pass@host/db`.
 
-6. CONEXIÓN DIRECTA CON WEBHOOK DE DAPTA:
-   - En backend/rutas/leads.py, configurar `MODO_SIMULACION_DAPTA=false` y remitir
-     la solicitud HTTP POST autenticada con `DAPTA_API_KEY` hacia el endpoint
-     oficial de calificación de leads de Dapta.
+6. CALIFICACIÓN CON EL AGENTE DE TEXTO DAPTA:
+   - El pipeline envía los datos conocidos del lead, incluida su categoría,
+     al agente `a2f51962-1754-4ff4-a5d3-0082625607cc`.
+   - El estado persistido de la empresa refleja el veredicto del agente:
+     calificado, no calificado o en revisión. Si Dapta falla, no se inventa
+     una calificación ni se actualiza el estado.
+   - El score solo se muestra si el agente devuelve uno explícitamente.
 
 ================================================================================
 17. ROADMAP FUTURO

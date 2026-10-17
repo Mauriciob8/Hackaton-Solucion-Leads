@@ -16,7 +16,17 @@ VARIABLES DE ENTORNO (opcionales)
   COSTO_EMAIL=0.0002                 # Costo por email en USD
   COSTO_WHATSAPP=0.0350              # Costo por mensaje WhatsApp en USD
   OPENAI_API_KEY=sk-...              # Para conectar LLM real (opcional)
-  MODO_SIMULACION_DAPTA=true         # false = webhook real a Dapta
+  DAPTA_AGENT_ID=a2f51962-1754-4ff4-a5d3-0082625607cc
+  DAPTA_AGENT_EXECUTE_URL=https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc/execute
+
+La calificación del pipeline consulta este agente en cada solicitud. Si Dapta
+no responde, la API devuelve un error y no inventa ni persiste un veredicto.
+La categoría del lead se incluye en los datos enviados al agente; su estado
+persistido en el pipeline corresponde al veredicto devuelto.
+La respuesta de calificación debe incluir `SCORE: N%` (0 a 100). El backend
+guarda el score como fracción de 0 a 1 en `score_calidad_dapta` y la API
+también devuelve `score_calidad_porcentaje` para expresar el valor de 0 a 100.
+Si falta un score válido, no se guarda el resultado y la API informa un error.
 
 ESTRUCTURA
 ----------

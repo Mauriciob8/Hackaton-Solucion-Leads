@@ -138,9 +138,17 @@ export default function PaginaPrincipal() {
     cantidad: number; timestamp: string;
   } | null>(null);
 
-  // Modales
+  // Modales y Notificaciones
   const [modalAuditoria, setModalAuditoria] = useState<Lead | null>(null);
   const [modalConversacion, setModalConversacion] = useState<Lead | null>(null);
+  const [notificacionDapta, setNotificacionDapta] = useState<{
+    empresa: string;
+    categoria: string;
+    estado: string;
+    score: number;
+    feedback: string;
+  } | null>(null);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
   function handleDescargarCSV() {
     window.open(`${API_URL}/api/leads/calificados/exportar-csv`, "_blank");
@@ -182,37 +190,66 @@ export default function PaginaPrincipal() {
     leadId: string,
     accion: "contactar" | "respuesta" | "calificar"
   ) {
+    setErrorAccion(null);
     try {
+      let res: Response;
       if (accion === "contactar") {
-        await fetch(`${API_URL}/api/leads/${leadId}/contactar`, { method: "POST" });
+        res = await fetch(`${API_URL}/api/leads/${leadId}/contactar`, { method: "POST" });
       } else if (accion === "respuesta") {
         const opcion = Math.random() > 0.5 ? "A" : "B";
-        await fetch(`${API_URL}/api/leads/${leadId}/respuesta`, {
+        res = await fetch(`${API_URL}/api/leads/${leadId}/respuesta`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lead_id: leadId, opcion }),
         });
-      } else if (accion === "calificar") {
-        await fetch(`${API_URL}/api/leads/${leadId}/calificar`, { method: "POST" });
+      } else {
+        res = await fetch(`${API_URL}/api/leads/${leadId}/calificar`, { method: "POST" });
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `No se pudo ejecutar la acción '${accion}'.`);
+      }
+      if (accion === "calificar") {
+        if (data && data.nuevo_estado) {
+          setNotificacionDapta({
+            empresa: data.nombre_negocio || "Empresa",
+            categoria: data.categoria || "Categoría",
+            estado: data.nuevo_estado,
+            score: data.score_calidad_porcentaje,
+            feedback: data.feedback_dapta || data.mensaje,
+          });
+        }
       }
       await recargar();
-    } catch {
-      console.error(`Error al ejecutar acción '${accion}' en lead ${leadId}`);
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : "Error inesperado al ejecutar la acción.";
+      setErrorAccion(mensaje);
+      console.error(`Error al ejecutar acción '${accion}' en lead ${leadId}:`, error);
     }
   }
 
   async function handleAccionLote(
     accion: "contactar" | "respuesta" | "calificar"
   ) {
+    setErrorAccion(null);
     try {
-      await fetch(`${API_URL}/api/leads/procesar-lote`, {
+      const res = await fetch(`${API_URL}/api/leads/procesar-lote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accion, limite: 50 }),
       });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `No se pudo ejecutar la acción en lote '${accion}'.`);
+      }
+      if (data.errores > 0) {
+        setErrorAccion(`${data.errores} lead(s) no pudieron procesarse. Revisa la conexión con Dapta.`);
+      }
       await recargar();
-    } catch {
-      console.error(`Error al ejecutar acción en lote '${accion}'`);
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : "Error inesperado al procesar el lote.";
+      setErrorAccion(mensaje);
+      console.error(`Error al ejecutar acción en lote '${accion}':`, error);
     }
   }
 
@@ -248,6 +285,22 @@ export default function PaginaPrincipal() {
               <code className="bg-white border border-amber-200 px-2 py-0.5 rounded font-mono text-[11px]">
                 uvicorn backend.main:app --reload
               </code>
+            </div>
+          </div>
+        )}
+        {errorAccion && (
+          <div className="px-8 pt-4" role="alert">
+            <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-rose-800 text-xs flex items-center justify-between">
+              <span className="flex items-center gap-2 font-medium">
+                <span>⚠️</span> {errorAccion}
+              </span>
+              <button
+                onClick={() => setErrorAccion(null)}
+                className="text-rose-700 hover:text-rose-900 font-bold"
+                aria-label="Cerrar mensaje de error"
+              >
+                ✕
+              </button>
             </div>
           </div>
         )}
@@ -390,6 +443,34 @@ export default function PaginaPrincipal() {
           lead={modalConversacion}
           onCerrar={() => setModalConversacion(null)}
         />
+      )}
+
+      {/* Notificación Flotante de Calificación Dapta */}
+      {notificacionDapta && (
+        <div className="fixed bottom-6 right-20 z-40 max-w-md bg-white border border-slate-300 rounded-2xl shadow-xl p-4 animate-in slide-in-from-bottom-5 duration-300 flex items-start gap-3">
+          <span className="text-2xl mt-0.5">🤖</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-xs font-bold text-slate-900 truncate">
+                Agente Dapta calificó a: {notificacionDapta.empresa}
+              </h4>
+              <button
+                onClick={() => setNotificacionDapta(null)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Categoría: <strong className="text-indigo-600">{notificacionDapta.categoria}</strong> • Nuevo Estado:{" "}
+              <strong className="text-emerald-700 capitalize">{notificacionDapta.estado.replace("_", " ")}</strong> • Score:{" "}
+              <strong className="text-slate-800">{notificacionDapta.score.toFixed(0)}%</strong>
+            </p>
+            <p className="text-xs text-slate-700 mt-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 line-clamp-3">
+              &quot;{notificacionDapta.feedback}&quot;
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

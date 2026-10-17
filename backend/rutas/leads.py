@@ -7,7 +7,7 @@ Gestiona el ciclo de vida completo de un lead:
   GET  /api/leads/{id}     → Detalle de un lead
   POST /api/leads/{id}/contactar → Envía el micro-sondeo
   POST /api/leads/{id}/respuesta → Registra la respuesta del prospecto
-  POST /api/leads/{id}/calificar → Simula calificación Dapta
+  POST /api/leads/{id}/calificar → Califica con el agente de texto Dapta
   POST /api/leads/procesar-lote  → Procesa leads en lote
 """
 
@@ -38,7 +38,8 @@ from backend.servicios.scraper import detectar_leads
 from backend.servicios.rag_agente import (
     seleccionar_micro_sondeo,
     generar_propuesta_personalizada,
-    simular_calificacion_dapta,
+    calificar_con_agente_dapta,
+    DaptaAgentError,
     obtener_solucion_para_lead,
 )
 from backend.servicios.contacto import enviar_micro_sondeo, enviar_propuesta
@@ -301,45 +302,51 @@ def registrar_respuesta(lead_id: str, body: LeadRespuesta):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/leads/{id}/calificar — Calificación Dapta
+# POST /api/leads/{id}/calificar — Calificación Agente Dapta (ID: a2f51962-1754-4ff4-a5d3-0082625607cc)
 # ---------------------------------------------------------------------------
 
-@router.post("/{lead_id}/calificar", summary="Calificar el lead con el agente Dapta")
+@router.post("/{lead_id}/calificar", summary="Calificar el lead con el agente de texto Dapta")
 def calificar(lead_id: str):
     """
-    Envía el lead al agente calificador de Dapta (simulado en demo).
-    Actualiza el estado a 'calificado' o 'rechazado' según el resultado.
+    Envía el lead al agente de texto de Dapta (Leo — ID: a2f51962-1754-4ff4-a5d3-0082625607cc).
+    Envía el nombre de la empresa, su categoría (sector), canal de contacto y señales de dolor.
+    Actualiza el estado de la empresa con la calificación exacta dada por Dapta:
+    'calificado', 'no_calificado' o 'en_revision'.
     """
     lead = obtener_lead_por_id(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
 
-    if lead["estado"] != EstadoLead.RESPONDIO:
-        raise HTTPException(
-            status_code=400,
-            detail="Solo se pueden calificar leads que respondieron el sondeo"
+    try:
+        nuevo_estado, score, feedback = calificar_con_agente_dapta(
+            nombre_negocio    = lead["nombre_negocio"],
+            sector            = lead["sector"],  # CATEGORÍA requerida por el usuario
+            canal             = lead.get("canal", "email"),
+            senal_dolor       = lead.get("senal_dolor", ""),
+            opcion_elegida    = lead.get("opcion_respondida") or "A",
+            propuesta_enviada = bool(lead.get("propuesta_generada")),
+            lead_id           = lead_id,
         )
+    except DaptaAgentError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    # Simular llamada al webhook de Dapta
-    calificado, score = simular_calificacion_dapta(
-        nombre_negocio   = lead["nombre_negocio"],
-        sector           = lead["sector"],
-        opcion_elegida   = lead.get("opcion_respondida"),
-        propuesta_enviada= bool(lead.get("propuesta_generada")),
-    )
-
-    nuevo_estado = EstadoLead.CALIFICADO if calificado else EstadoLead.RECHAZADO
+    es_calificado = (nuevo_estado == EstadoLead.CALIFICADO.value)
 
     actualizar_estado_lead(lead_id, nuevo_estado, {
-        "calificado_dapta":    1 if calificado else 0,
+        "calificado_dapta":    1 if es_calificado else 0,
         "score_calidad_dapta": score,
+        "feedback_dapta":      feedback,
     })
 
     return {
-        "mensaje":             f"Lead {'calificado ✅' if calificado else 'rechazado ❌'} por Dapta",
-        "calificado":          calificado,
-        "score_calidad":       score,
+        "mensaje":             f"Empresa '{lead['nombre_negocio']}' clasificada como: {nuevo_estado}",
+        "calificado":          es_calificado,
         "nuevo_estado":        nuevo_estado,
+        "score_calidad":       score,
+        "score_calidad_porcentaje": round(score * 100, 2),
+        "feedback_dapta":      feedback,
+        "categoria":           lead["sector"],
+        "nombre_negocio":      lead["nombre_negocio"],
     }
 
 

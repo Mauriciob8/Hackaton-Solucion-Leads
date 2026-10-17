@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS leads (
     propuesta_generada  TEXT,
     calificado_dapta    INTEGER DEFAULT 0,
     score_calidad_dapta REAL DEFAULT 0.0,
+    feedback_dapta      TEXT,
     costo_scraping      REAL DEFAULT 0.0,
     costo_tokens        REAL DEFAULT 0.0,
     costo_envio         REAL DEFAULT 0.0,
@@ -99,6 +100,11 @@ def inicializar_base_datos():
     """
     conexion = obtener_conexion()
     conexion.executescript(ESQUEMA_SQL)
+    # Migración suave de columnas adicionales si la tabla ya existía
+    try:
+        conexion.execute("ALTER TABLE leads ADD COLUMN feedback_dapta TEXT")
+    except Exception:
+        pass
     conexion.commit()
     conexion.close()
     print(f"[DB] Base de datos inicializada en: {RUTA_BASE_DATOS}")
@@ -110,21 +116,25 @@ def inicializar_base_datos():
 
 def insertar_lead(lead_data: dict) -> str:
     """Inserta un lead nuevo. Retorna el ID insertado."""
+    lead_dict = dict(lead_data)
+    lead_dict.setdefault("feedback_dapta", None)
     con = obtener_conexion()
     con.execute("""
         INSERT INTO leads (
             id, nombre_negocio, sector, ciudad, telefono, email, sitio_web,
             senal_dolor, tipo_senal, fuente_deteccion, canal, estado,
-            costo_scraping, costo_tokens, costo_envio, fecha_deteccion, campana_id
+            costo_scraping, costo_tokens, costo_envio, fecha_deteccion, campana_id,
+            feedback_dapta
         ) VALUES (
             :id, :nombre_negocio, :sector, :ciudad, :telefono, :email, :sitio_web,
             :senal_dolor, :tipo_senal, :fuente_deteccion, :canal, :estado,
-            :costo_scraping, :costo_tokens, :costo_envio, :fecha_deteccion, :campana_id
+            :costo_scraping, :costo_tokens, :costo_envio, :fecha_deteccion, :campana_id,
+            :feedback_dapta
         )
-    """, lead_data)
+    """, lead_dict)
     con.commit()
     con.close()
-    return lead_data["id"]
+    return lead_dict["id"]
 
 
 def obtener_lead_por_id(lead_id: str) -> Optional[dict]:

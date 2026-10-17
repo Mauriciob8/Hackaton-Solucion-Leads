@@ -25,13 +25,15 @@ from pydantic import BaseModel, Field
 class EstadoLead(str, Enum):
     """
     Ciclo de vida de un lead a través del pipeline.
-    El orden es: detectado → contactado → respondio → calificado / rechazado
+    El orden es: detectado → contactado → respondio → calificado / no_calificado / en_revision / rechazado
     """
-    DETECTADO    = "detectado"      # Extraído del scraper, aún sin contacto
-    CONTACTADO   = "contactado"     # Se le envió el micro-sondeo
-    RESPONDIO    = "respondio"      # Respondió la pregunta de sondeo (opción A o B)
-    CALIFICADO   = "calificado"     # Aprobado por el agente Dapta
-    RECHAZADO    = "rechazado"      # Dapta lo descartó o no respondió
+    DETECTADO     = "detectado"      # Extraído del scraper, aún sin contacto
+    CONTACTADO    = "contactado"     # Se le envió el micro-sondeo
+    RESPONDIO     = "respondio"      # Respondió la pregunta de sondeo (opción A o B)
+    CALIFICADO    = "calificado"     # Aprobado por el agente Dapta
+    NO_CALIFICADO = "no_calificado"  # Descartado como no calificado por agente Dapta
+    EN_REVISION   = "en_revision"    # Requiere revisión o más datos según agente Dapta
+    RECHAZADO     = "rechazado"      # Descartado o no respondió
 
 
 class CanalContacto(str, Enum):
@@ -83,9 +85,10 @@ class Lead(BaseModel):
     opcion_respondida:   Optional[str] = None   # "A" o "B"
     propuesta_generada:  Optional[str] = None   # Propuesta personalizada enviada
 
-    # -- Calificación Dapta --
+    # -- Calificación Agente Dapta --
     calificado_dapta:    bool  = False
     score_calidad_dapta: float = 0.0
+    feedback_dapta:      Optional[str] = None   # Respuesta o justificación del Agente Dapta
 
     # -- Costos acumulados (se actualizan en cada evento) --
     costo_scraping: float = 0.0

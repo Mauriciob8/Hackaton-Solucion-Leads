@@ -1,0 +1,18 @@
+{
+  "agent_id": "a2f51962-1754-4ff4-a5d3-0082625607cc",
+  "conversation_id": "82dc3827-d82d-47b7-88fc-df351de3fed4",
+  "input": "Hola Leo, soy de Clínica Dental Sonrisas, categoría: Salud / Odontología. Nuestro principal problema es conseguir nuevos pacientes para ortodoncia. Tenemos interacción alta en redes sociales (Instagram y Facebook), nuestro ingreso mensual es superior a 500 USD, y los contactamos por WhatsApp. Por favor califícanos.",
+  "output": "¡Gracias por la información! El equipo comercial les dará seguimiento. Si necesitan algo más, pueden escribirme por aquí.",
+  "tool_calls": [
+    {
+      "name": "close_conversation",
+      "type": "close_conversation",
+      "args": {
+        "reason": "calificación completada; informar derivación comercial"
+      },
+      "id": "call_BxnKUsVeMlSoSzMND2UIjLiN"
+    }
+  ],
+  "duration_ms": 3541.441,
+  "status": "success"
+}

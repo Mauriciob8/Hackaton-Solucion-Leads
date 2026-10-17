@@ -590,7 +590,8 @@ VARIABLES DE ENTORNO OPCIONALES
   # Crear archivo .env en la raíz (backend lo lee automáticamente)
   OPENAI_API_KEY=sk-...            # Para LLM real en lugar de templates
   COSTO_WHATSAPP=0.0350            # Ajustar costos reales según plan
-  MODO_SIMULACION_DAPTA=true       # false = webhook real a Dapta
+  DAPTA_AGENT_ID=a2f51962-1754-4ff4-a5d3-0082625607cc
+  DAPTA_AGENT_EXECUTE_URL=https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc/execute
 
 ================================================================================
 13. CÓMO CONECTAR A PRODUCCIÓN (POST-DEMO)
@@ -632,11 +633,13 @@ BASE DE DATOS PRODUCCIÓN
   • Cambiar RUTA_BASE_DATOS a postgresql://...
   • Instalar: pip install psycopg2-binary
 
-DAPTA WEBHOOK REAL
-  En rutas/leads.py → función calificar():
-  • Descomentar llamada HTTP real a DAPTA_WEBHOOK_URL
-  • Agregar DAPTA_API_KEY al .env
-  • Cambiar MODO_SIMULACION_DAPTA=false
+AGENTE DE TEXTO DAPTA
+  En backend/config.py se configura DAPTA_AGENT_ID y DAPTA_AGENT_EXECUTE_URL.
+  Cada calificación envía el nombre de empresa, categoría, canal y señales
+  conocidas al endpoint execute del agente. El estado del lead se actualiza
+  con el veredicto recibido; si la respuesta no es concluyente queda en revisión,
+  y si falla la conexión no se persiste un estado nuevo.
+  El widget del mismo agente se carga desde frontend/app/layout.tsx.
 
 ================================================================================
 14. EL ARGUMENTO GANADOR PARA EL JURADO
