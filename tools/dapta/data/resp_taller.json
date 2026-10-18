@@ -1,0 +1,9 @@
+{
+  "agent_id": "a2f51962-1754-4ff4-a5d3-0082625607cc",
+  "conversation_id": "3bb85330-ea61-45ec-83aa-d7e2c05d9cf9",
+  "input": "Hola, somos Taller Mecánico Rapifix, categoría: Mecánica Automotriz. No tenemos redes sociales ni interactuamos en internet, y nuestros ingresos mensuales son de 100 USD (menor a 500). Llegamos por email. ¿Podemos calificar?",
+  "output": "Con la información que compartiste, por ahora no cumplirían el criterio de ingresos mínimos (500) y no tienen actividad en redes, así que quedarían **no calificados** según los criterios actuales. El canal de contacto queda registrado como email; si cambian esos datos, el equipo comercial podrá reevaluar el caso. ¿Necesitas ayuda con algo más relacionado con la calificación?",
+  "tool_calls": [],
+  "duration_ms": 2102.7079999999996,
+  "status": "success"
+}

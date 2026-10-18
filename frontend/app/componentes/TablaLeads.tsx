@@ -8,6 +8,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import ModalVeredictoDapta from "./ModalVeredictoDapta";
+
+declare global {
+  interface Window {
+    setConversationParams?: (params: Record<string, unknown>) => void;
+    toggleDaptaWidgetChat?: () => void;
+    daptaAgent?: unknown;
+  }
+}
 
 export interface Lead {
   id:               string;
@@ -24,6 +33,7 @@ export interface Lead {
   opcion_respondida: string | null;
   calificado_dapta:  number;
   score_calidad_dapta: number;
+  feedback_dapta?:    string | null;
   fecha_deteccion:  string;
   pregunta_sondeo?:    string | null;
   propuesta_generada?: string | null;
@@ -32,7 +42,7 @@ export interface Lead {
 interface PropsTablaLeads {
   leads:    Lead[];
   cargando?: boolean;
-  onAccion: (leadId: string, accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
+  onAccion: (leadId: string, accion: "contactar" | "respuesta" | "calificar") => Promise<void | boolean>;
   onAccionLote?: (accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
   onVerAuditoria?: (lead: Lead) => void;
   onVerConversacion?: (lead: Lead) => void;
@@ -40,11 +50,13 @@ interface PropsTablaLeads {
 }
 
 const CONFIG_ESTADO: Record<string, { etiqueta: string; clase: string; dot: string }> = {
-  detectado:  { etiqueta: "Detectado",  clase: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
-  contactado: { etiqueta: "Contactado", clase: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  respondio:  { etiqueta: "Respondió",  clase: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
-  calificado: { etiqueta: "Calificado ✅", clase: "bg-emerald-50 text-emerald-800 border-emerald-200 font-bold", dot: "bg-emerald-500" },
-  rechazado:  { etiqueta: "Rechazado",  clase: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500" },
+  detectado:     { etiqueta: "Detectado",        clase: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-500" },
+  contactado:    { etiqueta: "Contactado",       clase: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  respondio:     { etiqueta: "Respondió",        clase: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  calificado:    { etiqueta: "Calificado ✅",    clase: "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold shadow-2xs", dot: "bg-emerald-500" },
+  no_calificado: { etiqueta: "No calificado ❌",  clase: "bg-rose-50 text-rose-700 border-rose-200 font-semibold", dot: "bg-rose-500" },
+  en_revision:   { etiqueta: "En revisión ⚠️",   clase: "bg-purple-50 text-purple-700 border-purple-200 font-semibold", dot: "bg-purple-500" },
+  rechazado:     { etiqueta: "Rechazado ❌",     clase: "bg-slate-100 text-slate-600 border-slate-200 font-medium", dot: "bg-slate-400" },
 };
 
 const ICONOS_CANAL: Record<string, string> = {
@@ -64,15 +76,34 @@ export default function TablaLeads({
 }: PropsTablaLeads) {
   const [enProgreso, setEnProgreso] = useState<Set<string>>(new Set());
   const [loteEnProgreso, setLoteEnProgreso] = useState<string | null>(null);
+  const [leadVeredicto, setLeadVeredicto] = useState<Lead | null>(null);
 
   // Filtros locales
   const [filtroCanal, setFiltroCanal] = useState<string>("");
   const [filtroEstado, setFiltroEstado] = useState<string>("");
 
+  function abrirWidgetDapta(lead: Lead) {
+    if (typeof window !== "undefined") {
+      if (window.setConversationParams) {
+        window.setConversationParams({
+          lead_id: lead.id,
+          empresa: lead.nombre_negocio,
+          categoria: lead.sector,
+          perfil_cliente: lead.sector,
+          canal: lead.canal,
+          senal_dolor: lead.senal_dolor,
+        });
+      }
+      if (window.toggleDaptaWidgetChat) {
+        window.toggleDaptaWidgetChat();
+      }
+    }
+  }
+
   async function ejecutarAccion(leadId: string, accion: "contactar" | "respuesta" | "calificar") {
     setEnProgreso(prev => new Set(prev).add(leadId));
     try {
-      await onAccion(leadId, accion);
+      return (await onAccion(leadId, accion)) !== false;
     } finally {
       setEnProgreso(prev => {
         const siguiente = new Set(prev);
@@ -204,7 +235,7 @@ export default function TablaLeads({
                   disabled={loteEnProgreso !== null}
                   className="text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {loteEnProgreso === "calificar" ? "⏳..." : `✅ Calificar (${cantRespondieron})`}
+                  {loteEnProgreso === "calificar" ? "⏳..." : `🤖 Calificar con Dapta (${cantRespondieron})`}
                 </button>
               )}
             </div>
@@ -217,7 +248,7 @@ export default function TablaLeads({
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
-              <th className="py-3 px-4">Empresa & Sector</th>
+              <th className="py-3 px-4">Empresa & Categoría</th>
               <th className="py-3 px-3">Canal</th>
               <th className="py-3 px-4">Señal de Dolor (Pública)</th>
               <th className="py-3 px-3 text-center">Estado</th>
@@ -238,14 +269,21 @@ export default function TablaLeads({
 
               return (
                 <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
-                  {/* Empresa & Sector */}
+                  {/* Empresa & Categoría */}
                   <td className="py-3.5 px-4">
                     <p className="font-bold text-slate-900 truncate max-w-[170px]">
                       {lead.nombre_negocio}
                     </p>
-                    <p className="text-slate-400 text-[11px] capitalize">
-                      {lead.sector} {lead.ciudad ? `• ${lead.ciudad}` : ""}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-900 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md">
+                        🏷️ {lead.sector}
+                      </span>
+                      {lead.ciudad && (
+                        <span className="text-slate-400 text-[10px]">
+                          • {lead.ciudad}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Canal */}
@@ -274,8 +312,8 @@ export default function TablaLeads({
                       <span className={`w-1.5 h-1.5 rounded-full ${configEstado.dot}`} />
                       {configEstado.etiqueta}
                     </span>
-                    {lead.estado === "calificado" && lead.score_calidad_dapta > 0 && (
-                      <p className="text-emerald-700 font-bold text-[11px] mt-0.5">
+                    {(lead.score_calidad_dapta > 0 || lead.feedback_dapta) && (
+                      <p className="text-slate-500 font-semibold text-[10px] mt-0.5">
                         Score: {(lead.score_calidad_dapta * 100).toFixed(0)}%
                       </p>
                     )}
@@ -332,16 +370,41 @@ export default function TablaLeads({
                       </button>
                     )}
                     {lead.estado === "respondio" && (
-                      <button
-                        onClick={() => ejecutarAccion(lead.id, "calificar")}
-                        disabled={ocupado}
-                        className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50"
-                      >
-                        {ocupado ? "⏳" : "✅ Calificar"}
-                      </button>
+                      <div className="flex flex-col items-center gap-1">
+                        <button
+                          onClick={() => ejecutarAccion(lead.id, "calificar")}
+                          disabled={ocupado}
+                          title="Enviar lead y categoría a agente Dapta"
+                          className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {ocupado ? "⏳ Evaluando..." : "🤖 Calificar (Dapta)"}
+                        </button>
+                        <button
+                          onClick={() => abrirWidgetDapta(lead)}
+                          title="Abrir chat interactivo con la Agente Susan"
+                          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          💬 Chat con Susan
+                        </button>
+                      </div>
                     )}
-                    {(lead.estado === "calificado" || lead.estado === "rechazado") && (
-                      <span className="text-slate-400 text-xs font-medium">Completado</span>
+                    {(lead.estado === "calificado" || lead.estado === "no_calificado" || lead.estado === "en_revision" || lead.estado === "rechazado") && (
+                      <div className="flex flex-col items-center gap-1">
+                        <button
+                          onClick={() => setLeadVeredicto(lead)}
+                          title="Ver veredicto y justificación del Agente Dapta"
+                          className="text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                        >
+                          📋 Veredicto Dapta
+                        </button>
+                        <button
+                          onClick={() => abrirWidgetDapta(lead)}
+                          title="Chatear con Susan sobre este lead"
+                          className="text-[10px] text-slate-400 hover:text-indigo-600 transition-colors"
+                        >
+                          💬 Chat Susan
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -350,6 +413,22 @@ export default function TablaLeads({
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Veredicto del Agente Dapta */}
+      {leadVeredicto && (
+        <ModalVeredictoDapta
+          lead={leadVeredicto}
+          onCerrar={() => setLeadVeredicto(null)}
+          onAbrirWidget={abrirWidgetDapta}
+          onRecalificar={async (id) => {
+            const exito = await ejecutarAccion(id, "calificar");
+            if (!exito) return false;
+            const updated = leads.find((l) => l.id === id);
+            if (updated) setLeadVeredicto(updated);
+            return true;
+          }}
+        />
+      )}
     </div>
   );
 }

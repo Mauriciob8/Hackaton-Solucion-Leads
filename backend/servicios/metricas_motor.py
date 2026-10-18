@@ -77,13 +77,28 @@ def calcular_metricas_por_canal() -> list[MetricaCanal]:
         # Cada etapa incluye a los leads que avanzaron a las etapas posteriores.
         m.total_detectados += cantidad  # Todos los leads fueron detectados
 
-        if estado in [EstadoLead.CONTACTADO, EstadoLead.RESPONDIO, EstadoLead.CALIFICADO, EstadoLead.RECHAZADO]:
+        etapas_posteriores_contacto = [
+            EstadoLead.CONTACTADO,
+            EstadoLead.RESPONDIO,
+            EstadoLead.CALIFICADO,
+            EstadoLead.NO_CALIFICADO,
+            EstadoLead.EN_REVISION,
+            EstadoLead.RECHAZADO,
+        ]
+        if estado in etapas_posteriores_contacto or estado in [e.value for e in etapas_posteriores_contacto]:
             m.total_contactados += cantidad
 
-        if estado in [EstadoLead.RESPONDIO, EstadoLead.CALIFICADO, EstadoLead.RECHAZADO]:
+        etapas_posteriores_respuesta = [
+            EstadoLead.RESPONDIO,
+            EstadoLead.CALIFICADO,
+            EstadoLead.NO_CALIFICADO,
+            EstadoLead.EN_REVISION,
+            EstadoLead.RECHAZADO,
+        ]
+        if estado in etapas_posteriores_respuesta or estado in [e.value for e in etapas_posteriores_respuesta]:
             m.total_respondieron += cantidad
 
-        if estado == EstadoLead.CALIFICADO:
+        if estado == EstadoLead.CALIFICADO or estado == EstadoLead.CALIFICADO.value:
             m.total_calificados += cantidad
 
     # Para los canales que tienen datos, recalcular totales sin duplicar costos

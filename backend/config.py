@@ -60,14 +60,17 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 MODELO_LLM = os.environ.get("MODELO_LLM", "gpt-4o-mini")
 
 # ---------------------------------------------------------------------------
-# Webhook Dapta (simulado en demo)
+# Agente de Texto Dapta (Calificador Real)
 # ---------------------------------------------------------------------------
-DAPTA_WEBHOOK_URL = os.environ.get(
-    "DAPTA_WEBHOOK_URL",
-    "https://api.dapta.ai/webhook/calificar-lead"
+DAPTA_AGENT_ID = os.environ.get(
+    "DAPTA_AGENT_ID",
+    "a2f51962-1754-4ff4-a5d3-0082625607cc"
 )
-DAPTA_API_KEY = os.environ.get("DAPTA_API_KEY", "")
-MODO_SIMULACION_DAPTA = os.environ.get("MODO_SIMULACION_DAPTA", "true").lower() == "true"
+DAPTA_AGENT_EXECUTE_URL = os.environ.get(
+    "DAPTA_AGENT_EXECUTE_URL",
+    f"https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/{DAPTA_AGENT_ID}/execute"
+)
+DAPTA_TIMEOUT_SECONDS = float(os.environ.get("DAPTA_TIMEOUT_SECONDS", "90"))
 
 # ---------------------------------------------------------------------------
 # Límites operativos

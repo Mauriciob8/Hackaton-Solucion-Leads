@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS leads (
     propuesta_generada  TEXT,
     calificado_dapta    INTEGER DEFAULT 0,
     score_calidad_dapta REAL DEFAULT 0.0,
+    feedback_dapta      TEXT,
     costo_scraping      REAL DEFAULT 0.0,
     costo_tokens        REAL DEFAULT 0.0,
     costo_envio         REAL DEFAULT 0.0,
@@ -99,6 +100,11 @@ def inicializar_base_datos():
     """
     conexion = obtener_conexion()
     conexion.executescript(ESQUEMA_SQL)
+    # Migración suave de columnas adicionales si la tabla ya existía
+    try:
+        conexion.execute("ALTER TABLE leads ADD COLUMN feedback_dapta TEXT")
+    except Exception:
+        pass
     conexion.commit()
     conexion.close()
     print(f"[DB] Base de datos inicializada en: {RUTA_BASE_DATOS}")
@@ -108,23 +114,82 @@ def inicializar_base_datos():
 # CRUD de Leads
 # ---------------------------------------------------------------------------
 
-def insertar_lead(lead_data: dict) -> str:
-    """Inserta un lead nuevo. Retorna el ID insertado."""
+def buscar_lead_duplicado(
+    nombre_negocio: str,
+    telefono: Optional[str] = None,
+    email: Optional[str] = None,
+) -> Optional[dict]:
+    """
+    Verifica si ya existe un lead registrado con el mismo nombre de negocio
+    o con el mismo teléfono o email de contacto.
+    """
+    con = obtener_conexion()
+    nombre_normalizado = (nombre_negocio or "").strip().lower()
+    query = "SELECT * FROM leads WHERE LOWER(TRIM(nombre_negocio)) = ?"
+    params: list = [nombre_normalizado]
+
+    tel_limpio = (telefono or "").strip()
+    if tel_limpio:
+        query += " OR (telefono IS NOT NULL AND TRIM(telefono) != '' AND TRIM(telefono) = ?)"
+        params.append(tel_limpio)
+
+    email_limpio = (email or "").strip().lower()
+    if email_limpio:
+        query += " OR (email IS NOT NULL AND TRIM(email) != '' AND LOWER(TRIM(email)) = ?)"
+        params.append(email_limpio)
+
+    fila = con.execute(query, tuple(params)).fetchone()
+    con.close()
+    return dict(fila) if fila else None
+
+
+def obtener_nombres_leads_existentes() -> set[str]:
+    """Retorna un conjunto con los nombres normalizados de todos los leads ya registrados en la base de datos."""
+    con = obtener_conexion()
+    filas = con.execute("SELECT LOWER(TRIM(nombre_negocio)) FROM leads").fetchall()
+    con.close()
+    return {fila[0] for fila in filas if fila[0]}
+
+
+def insertar_lead(lead_data: dict, permitir_duplicados: bool = False) -> Optional[str]:
+    """
+    Inserta un lead nuevo en la base de datos.
+    Si permitir_duplicados es False y ya existe coincidencia por nombre, teléfono o email,
+    omite la inserción y retorna None. Retorna el ID insertado si es exitoso.
+    """
+    lead_dict = dict(lead_data)
+    lead_dict.setdefault("feedback_dapta", None)
+    lead_dict.setdefault("costo_scraping", 0.0)
+    lead_dict.setdefault("costo_tokens", 0.0)
+    lead_dict.setdefault("costo_envio", 0.0)
+    lead_dict.setdefault("campana_id", None)
+
+    if not permitir_duplicados:
+        duplicado = buscar_lead_duplicado(
+            nombre_negocio = lead_dict.get("nombre_negocio", ""),
+            telefono       = lead_dict.get("telefono"),
+            email          = lead_dict.get("email"),
+        )
+        if duplicado:
+            return None
+
     con = obtener_conexion()
     con.execute("""
         INSERT INTO leads (
             id, nombre_negocio, sector, ciudad, telefono, email, sitio_web,
             senal_dolor, tipo_senal, fuente_deteccion, canal, estado,
-            costo_scraping, costo_tokens, costo_envio, fecha_deteccion, campana_id
+            costo_scraping, costo_tokens, costo_envio, fecha_deteccion, campana_id,
+            feedback_dapta
         ) VALUES (
             :id, :nombre_negocio, :sector, :ciudad, :telefono, :email, :sitio_web,
             :senal_dolor, :tipo_senal, :fuente_deteccion, :canal, :estado,
-            :costo_scraping, :costo_tokens, :costo_envio, :fecha_deteccion, :campana_id
+            :costo_scraping, :costo_tokens, :costo_envio, :fecha_deteccion, :campana_id,
+            :feedback_dapta
         )
-    """, lead_data)
+    """, lead_dict)
     con.commit()
     con.close()
-    return lead_data["id"]
+    return lead_dict["id"]
 
 
 def obtener_lead_por_id(lead_id: str) -> Optional[dict]:

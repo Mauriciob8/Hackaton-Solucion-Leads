@@ -1,0 +1,55 @@
+Reto Dapta: Más leads, menor costo
+Construyan una plataforma que encuentre clientes potenciales en fuentes gratuitas, los contacte y mida cuánto cuesta cada lead por canal, para saber dónde conviene buscar.
+
+01
+El reto en una frase
+Construyan una plataforma que encuentre clientes potenciales en fuentes gratuitas, los contacte y mida cuánto cuesta cada lead por canal, para saber dónde conviene buscar.
+
+02
+El problema
+Dapta ayuda a las pymes a convertir sus leads, pero 3 de cada 5 leads que llegan a Dapta preguntan si también les ayudamos a conseguirlos. Dependen de la pauta y no saben en qué canal buscar ni cuánto les cuesta cada lead.
+
+03
+El alcance
+Una plataforma que encuentra leads en fuentes gratuitas, los contacta y mide el costo por lead (CPL) de cada canal. Cerrar la venta queda por fuera.
+
+04
+Lo que debe hacer la plataforma
+1 · Encontrar: busca leads en varias fuentes
+Al menos 2 fuentes públicas y gratuitas: mapas, directorios, redes, sitios web. Los guarda en un solo lugar, sin duplicados.
+
+2 · Contactar: hace el primer acercamiento
+Envía el mensaje por el canal que tenga cada lead y registra quién respondió.
+
+3 · Medir: calcula el CPL por canal
+Muestra cuántos leads salieron de cada fuente y cuánto costó cada uno.
+
+4 · Calificar: pasa los leads a Dapta
+Dapta califica cada lead y la plataforma compara canales por costo y por calidad.
+
+05
+Con qué trabajar
+El perfil de cliente ideal para buscar, una lista de fuentes sugeridas, 50 empresas de ejemplo para probar y un entorno de prueba de Dapta con un agente calificador listo para recibir leads.
+
+06
+Entregable esperado
+La plataforma funcionando en vivo, con los leads reales que encontró durante el evento y su CPL por canal.
+
+07
+Cómo se mide
+Leads del perfil encontrados, costo por lead de cada canal y, si se conecta con Dapta, porcentaje de leads calificados por canal.
+
+08
+Requisitos
+Obligatorio
+Buscar leads en al menos 2 fuentes públicas y gratuitas.
+Guardar todo en un solo lugar y quitar duplicados.
+Filtrar los leads que encajan con el perfil de cliente ideal.
+Enviar un primer mensaje y registrar la respuesta.
+Mostrar un tablero con leads y CPL por canal.
+Usar solo datos públicos de empresas, respetando los términos de cada fuente y la ley de protección de datos.
+Deseable
+Enviar los leads al agente de Dapta para que los califique.
+Comparar canales por CPL y por porcentaje de leads calificados.
+Calcular el costo por lead calificado de cada canal.
+Así se ve qué canal trae leads baratos y cuál trae leads buenos.

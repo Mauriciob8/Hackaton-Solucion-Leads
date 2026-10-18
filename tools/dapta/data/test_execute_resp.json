@@ -1,0 +1,9 @@
+{
+  "agent_id": "a2f51962-1754-4ff4-a5d3-0082625607cc",
+  "conversation_id": "26b12dfa-8eaf-4d7e-b8a4-a1700312e396",
+  "input": "Hola, somos Restaurante El Buen Sabor, categoría Restaurante. Buscamos conseguir más comensales los fines de semana. Tenemos ingresos mayores a 500 y llegamos por email.",
+  "output": "Entendido: Restaurante El Buen Sabor busca atraer más comensales los fines de semana, reporta ingresos superiores a 500 y llegó por email. Para completar la calificación, ¿cómo describirían su nivel de interacción en redes sociales —alto, medio o bajo— y en cuáles plataformas están más activos?\nEntendido: Restaurante El Buen Sabor busca atraer más comensales los fines de semana, reporta ingresos superiores a 500 y llegó por email. Para completar la calificación, ¿cómo describirían su nivel de interacción en redes sociales —alto, medio o bajo— y en cuáles plataformas están más activos?",
+  "tool_calls": [],
+  "duration_ms": 2278.9030000000002,
+  "status": "success"
+}

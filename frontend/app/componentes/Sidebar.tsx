@@ -69,8 +69,12 @@ export default function Sidebar({
       {/* 1. Header con Logo */}
       <div>
         <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-100">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-indigo-500/20">
-            ⚡
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden shadow-xs border border-slate-200/80 bg-white p-1">
+            <img
+              src="/Logo.ico"
+              alt="Logo Motor de Leads"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <h1 className="font-bold text-slate-800 text-sm tracking-tight flex items-center gap-1.5">
@@ -80,7 +84,7 @@ export default function Sidebar({
               </span>
             </h1>
             <p className="text-[11px] text-slate-400 font-medium">
-              Hackathon Dapta 2024
+              Intent-Based Lead Engine
             </p>
           </div>
         </div>

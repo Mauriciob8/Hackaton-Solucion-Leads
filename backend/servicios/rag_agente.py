@@ -15,10 +15,24 @@ Para producción, descomentar la sección de ChromaDB + LLM real.
 """
 
 import json
-import os
 import re
+import unicodedata
+import uuid
 from pathlib import Path
 from typing import Optional, Tuple
+
+import httpx
+
+from backend.config import (
+    DAPTA_AGENT_ID,
+    DAPTA_AGENT_EXECUTE_URL,
+    DAPTA_TIMEOUT_SECONDS,
+)
+from backend.modelos.lead import EstadoLead
+
+
+class DaptaAgentError(RuntimeError):
+    """Error al solicitar o interpretar una respuesta del agente Dapta."""
 
 
 # ---------------------------------------------------------------------------
@@ -33,6 +47,7 @@ def _cargar_catalogo() -> list[dict]:
         return json.load(f)
 
 _CATALOGO_DAPTA = _cargar_catalogo()
+_UMBRAL_SCORE_CALIFICADO = 0.74
 
 
 # ---------------------------------------------------------------------------
@@ -264,37 +279,228 @@ def generar_propuesta_personalizada(
     return propuesta
 
 
-def simular_calificacion_dapta(
+def calificar_con_agente_dapta(
     nombre_negocio: str,
-    sector:         str,
-    opcion_elegida: Optional[str],
-    propuesta_enviada: bool,
-) -> Tuple[bool, float]:
+    sector: str,
+    canal: str = "email",
+    senal_dolor: str = "",
+    opcion_elegida: Optional[str] = "A",
+    propuesta_enviada: bool = True,
+    lead_id: Optional[str] = None,
+) -> Tuple[str, float, str]:
     """
-    Simula la respuesta del agente calificador de Dapta.
-
-    En producción, esto dispararía un webhook real a la API de Dapta.
-    Para la demo, aplica reglas heurísticas basadas en el estado del lead.
+    Califica al prospecto enviando su información al agente de texto de Dapta
+    incluyendo su categoría, nombre de la empresa, canal de contacto y señales
+    de dolor.
 
     Retorna:
-        Tupla (calificado: bool, score_calidad: float entre 0 y 1)
+        Tupla (estado: str, score_calidad: float, feedback_agente: str)
+        donde estado es 'calificado', 'no_calificado' o 'en_revision'.
     """
-    score = 0.0
+    categoria = sector or "Pyme / Comercio"
 
-    # +0.4 si respondió el sondeo (mostró interés mínimo)
-    if opcion_elegida in ["A", "B"]:
-        score += 0.4
+    datos_lead = {
+        "empresa": nombre_negocio,
+        "categoria": categoria,
+        "perfil_cliente": {
+            "categoria": categoria,
+        },
+        "canal_contacto": canal,
+        "necesidad_principal": senal_dolor or "No informada",
+        "respuesta_microsondeo": opcion_elegida or "Sin respuesta",
+        "propuesta_enviada": propuesta_enviada,
+        "actividad_en_redes": "No informada",
+    }
+    mensaje_para_agente = "\n".join((
+        "Califica este lead utilizando únicamente los datos proporcionados. "
+        f"El perfil del cliente es la categoría del lead a calificar: {categoria}.",
+        "Usa esa categoría como perfil principal para evaluar si la empresa "
+        "corresponde al cliente buscado.",
+        "No hagas preguntas ni solicites información adicional.",
+        "Responde incluyendo exactamente uno de estos estados: "
+        "ESTADO: CALIFICADO, ESTADO: NO_CALIFICADO o ESTADO: EN_REVISION, "
+        "incluye también SCORE: N% como porcentaje entero entre 0% y 100%, "
+        "y después explica brevemente el motivo. No omitas el score.",
+        f"Datos del lead: {json.dumps(datos_lead, ensure_ascii=False)}",
+    ))
 
-    # +0.3 si se le envió una propuesta (pasó la primera barrera)
-    if propuesta_enviada:
-        score += 0.3
+    payload = {
+        "message": mensaje_para_agente,
+        "channel": "widget",
+        "external_id": f"lead-{lead_id or 'eval'}-{uuid.uuid4()}",
+        "variables": {
+            "perfil_cliente": categoria,
+            "datos_lead": datos_lead,
+        },
+    }
+    try:
+        response = httpx.post(
+            DAPTA_AGENT_EXECUTE_URL,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=DAPTA_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except httpx.TimeoutException as exc:
+        raise DaptaAgentError(
+            f"Dapta no respondió dentro de {DAPTA_TIMEOUT_SECONDS:g} segundos. "
+            "La calificación no se guardó; puedes intentarlo nuevamente."
+        ) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        raise DaptaAgentError(
+            f"No se pudo obtener una calificación del agente Dapta: {exc}"
+        ) from exc
 
-    # +0.2 puntos aleatorios (simula variables de comportamiento)
-    import random
-    score += random.uniform(0.0, 0.3)
-    score = min(score, 1.0)
+    if not isinstance(data, dict):
+        raise DaptaAgentError("Dapta devolvió una respuesta con formato inválido.")
+    agent_id = data.get("agent_id")
+    if agent_id and agent_id != DAPTA_AGENT_ID:
+        raise DaptaAgentError(
+            f"La respuesta proviene del agente {agent_id}, no del agente configurado."
+        )
 
-    # Un lead se califica si supera el umbral de 0.6
-    calificado = score >= 0.6
+    output_text = data.get("output")
+    if not isinstance(output_text, str) or not output_text.strip():
+        raise DaptaAgentError("Dapta no devolvió un veredicto de calificación.")
 
-    return calificado, round(score, 2)
+    estado = _interpretar_veredicto_dapta(output_text, data.get("tool_calls", []))
+    score = _extraer_score_dapta(output_text, data)
+    if score is None:
+        raise DaptaAgentError(
+            "Dapta devolvió un veredicto, pero no se encontró un porcentaje "
+            "válido en el texto ni en los campos estructurados de la respuesta."
+        )
+    if estado == EstadoLead.EN_REVISION.value and score >= _UMBRAL_SCORE_CALIFICADO:
+        estado = EstadoLead.CALIFICADO.value
+    return estado, score, output_text.strip()
+
+
+def _normalizar_texto(texto: str) -> str:
+    texto_sin_acentos = unicodedata.normalize("NFKD", texto)
+    texto_sin_acentos = "".join(
+        caracter for caracter in texto_sin_acentos
+        if not unicodedata.combining(caracter)
+    )
+    return re.sub(r"\s+", " ", texto_sin_acentos.lower().replace("_", " ")).strip()
+
+
+def _interpretar_veredicto_dapta(output_text: str, tool_calls: object) -> str:
+    texto = _normalizar_texto(output_text)
+
+    estado_explicito = re.search(
+        r"\bestado\s*[:=]\s*(en\s+revision|no\s+calificad[oa]s?|calificad[oa]s?)\b",
+        texto,
+    )
+    if estado_explicito:
+        etiqueta = estado_explicito.group(1)
+        if etiqueta.startswith("no "):
+            return EstadoLead.NO_CALIFICADO.value
+        if etiqueta.startswith("en "):
+            return EstadoLead.EN_REVISION.value
+        return EstadoLead.CALIFICADO.value
+
+    if re.search(
+        r"\bno\s+(?:esta\s+)?calificad[oa]s?\b|\bno\s+califica\b|"
+        r"\bno\s+cumple(?:n)?(?:\s+con)?\b|\brechazad[oa]s?\b",
+        texto,
+    ):
+        return EstadoLead.NO_CALIFICADO.value
+
+    if re.search(
+        r"\bestado\s*[:=]\s*en\s+revision\b|\ben\s+revision\b|"
+        r"\bpendiente\b|\binformacion adicional\b|\bdatos insuficientes\b|"
+        r"\bfaltan datos\b|\bno se puede determinar\b|\bsin informacion suficiente\b|"
+        r"\bneed more information\b|\bunresolved\b",
+        texto,
+    ):
+        return EstadoLead.EN_REVISION.value
+
+    if isinstance(tool_calls, list):
+        razones = []
+        for llamada in tool_calls:
+            if not isinstance(llamada, dict) or not isinstance(llamada.get("args"), dict):
+                continue
+            razon = llamada["args"].get("reason")
+            if isinstance(razon, str):
+                razones.append(_normalizar_texto(razon))
+        razon_cierre = " ".join(razones)
+        if (
+            "lead qualification completed" in razon_cierre
+            or "calificacion completada" in razon_cierre
+        ):
+            return EstadoLead.CALIFICADO.value
+
+    if re.search(
+        r"\bestado\s*[:=]\s*calificad[oa]s?\b|\bcalificad[oa]s?\b|"
+        r"\bcumple[n]?(?:\s+con)?\s+(?:los\s+)?criterios\b|\baprobad[oa]s?\b",
+        texto,
+    ):
+        return EstadoLead.CALIFICADO.value
+
+    return EstadoLead.EN_REVISION.value
+
+
+def _normalizar_score(valor: object, es_porcentaje: bool = False) -> Optional[float]:
+    if isinstance(valor, str):
+        coincidencia = re.fullmatch(
+            r"\s*(\d+(?:[.,]\d+)?)\s*(%|por\s+ciento|/100|de\s+100|sobre\s+100)?\s*",
+            _normalizar_texto(valor),
+        )
+        if not coincidencia:
+            return None
+        numero = float(coincidencia.group(1).replace(",", "."))
+        es_porcentaje = es_porcentaje or coincidencia.group(2) is not None
+    elif isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        numero = float(valor)
+    else:
+        return None
+
+    if es_porcentaje or numero > 1:
+        numero /= 100
+    return numero if 0 <= numero <= 1 else None
+
+
+def _extraer_score_dapta(
+    output_text: str,
+    respuesta_agente: Optional[dict] = None,
+) -> Optional[float]:
+    if respuesta_agente:
+        campos_porcentaje = (
+            "score_porcentaje",
+            "score_percentage",
+            "percentage",
+            "porcentaje",
+            "calificacion_porcentaje",
+        )
+        campos_score = ("score", "quality_score", "calificacion")
+        for nombre_campo in campos_porcentaje + campos_score:
+            valor = respuesta_agente.get(nombre_campo)
+            if valor is not None:
+                score = _normalizar_score(
+                    valor,
+                    es_porcentaje=nombre_campo in campos_porcentaje,
+                )
+                if score is not None:
+                    return score
+
+    texto = _normalizar_texto(output_text)
+    etiquetas_score = (
+        r"(?:score|puntaje|puntuacion|porcentaje|calificacion)"
+        r"(?:\s+de\s+calidad)?"
+    )
+    expresiones = (
+        rf"\b{etiquetas_score}\s*(?:[:=]|\bes\b)?\s*"
+        r"(\d+(?:[.,]\d+)?)\s*(%|por\s+ciento|/100|de\s+100|sobre\s+100)?",
+        r"\b(\d+(?:[.,]\d+)?)\s*(%|por\s+ciento)",
+    )
+    candidatos: list[float] = []
+    for expresion in expresiones:
+        for coincidencia in re.finditer(expresion, texto):
+            numero = float(coincidencia.group(1).replace(",", "."))
+            marcador_porcentaje = coincidencia.group(2) is not None
+            score = _normalizar_score(numero, es_porcentaje=marcador_porcentaje)
+            if score is not None:
+                candidatos.append(score)
+
+    return candidatos[0] if candidatos else None
