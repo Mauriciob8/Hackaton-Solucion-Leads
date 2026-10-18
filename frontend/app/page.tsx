@@ -189,7 +189,7 @@ export default function PaginaPrincipal() {
   async function handleAccionLead(
     leadId: string,
     accion: "contactar" | "respuesta" | "calificar"
-  ) {
+  ): Promise<boolean> {
     setErrorAccion(null);
     try {
       let res: Response;
@@ -221,10 +221,12 @@ export default function PaginaPrincipal() {
         }
       }
       await recargar();
+      return true;
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : "Error inesperado al ejecutar la acción.";
       setErrorAccion(mensaje);
       console.error(`Error al ejecutar acción '${accion}' en lead ${leadId}:`, error);
+      return false;
     }
   }
 

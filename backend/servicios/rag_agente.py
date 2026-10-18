@@ -17,6 +17,7 @@ Para producción, descomentar la sección de ChromaDB + LLM real.
 import json
 import re
 import unicodedata
+import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -45,6 +46,7 @@ def _cargar_catalogo() -> list[dict]:
         return json.load(f)
 
 _CATALOGO_DAPTA = _cargar_catalogo()
+_UMBRAL_SCORE_CALIFICADO = 0.74
 
 
 # ---------------------------------------------------------------------------
@@ -308,24 +310,27 @@ def calificar_con_agente_dapta(
         "propuesta_enviada": propuesta_enviada,
         "actividad_en_redes": "No informada",
     }
-    mensaje_para_agente = (
-        "Al buscar esta empresa, el perfil ideal del cliente que solicita "
-        "la calificacion es su sector industrial: "
-        f"{categoria}. Usa este perfil para evaluar si la empresa corresponde "
-        "al cliente buscado. "
+    mensaje_para_agente = "\n".join((
         "Califica este lead utilizando únicamente los datos proporcionados. "
-        "Si falta información para decidir, usa "
-        "EN_REVISION. Responde incluyendo exactamente uno de estos estados: "
+        f"El perfil del cliente es la categoría del lead a calificar: {categoria}.",
+        "Usa esa categoría como perfil principal para evaluar si la empresa "
+        "corresponde al cliente buscado.",
+        "No hagas preguntas ni solicites información adicional.",
+        "Responde incluyendo exactamente uno de estos estados: "
         "ESTADO: CALIFICADO, ESTADO: NO_CALIFICADO o ESTADO: EN_REVISION, "
         "incluye también SCORE: N% como porcentaje entero entre 0% y 100%, "
-        "y después explica brevemente el motivo. No omitas el score.\n"
-        f"Datos del lead: {json.dumps(datos_lead, ensure_ascii=False)}"
-    )
+        "y después explica brevemente el motivo. No omitas el score.",
+        f"Datos del lead: {json.dumps(datos_lead, ensure_ascii=False)}",
+    ))
 
     payload = {
         "message": mensaje_para_agente,
         "channel": "widget",
-        "external_id": f"lead-{lead_id or 'eval'}",
+        "external_id": f"lead-{lead_id or 'eval'}-{uuid.uuid4()}",
+        "variables": {
+            "perfil_cliente": categoria,
+            "datos_lead": datos_lead,
+        },
     }
     try:
         response = httpx.post(
@@ -360,6 +365,8 @@ def calificar_con_agente_dapta(
             "Dapta devolvió un veredicto, pero no se encontró un porcentaje "
             "válido en el texto ni en los campos estructurados de la respuesta."
         )
+    if estado == EstadoLead.EN_REVISION.value and score >= _UMBRAL_SCORE_CALIFICADO:
+        estado = EstadoLead.CALIFICADO.value
     return estado, score, output_text.strip()
 
 

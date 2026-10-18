@@ -7,13 +7,14 @@
 
 "use client";
 
+import { useState } from "react";
 import { Lead } from "./TablaLeads";
 
 interface PropsModalVeredictoDapta {
   lead: Lead | null;
   onCerrar: () => void;
   onAbrirWidget?: (lead: Lead) => void;
-  onRecalificar?: (leadId: string) => Promise<void>;
+  onRecalificar?: (leadId: string) => Promise<boolean>;
 }
 
 export default function ModalVeredictoDapta({
@@ -22,11 +23,12 @@ export default function ModalVeredictoDapta({
   onAbrirWidget,
   onRecalificar,
 }: PropsModalVeredictoDapta) {
+  const [recalificando, setRecalificando] = useState(false);
+
   if (!lead) return null;
 
   const esCalificado = lead.estado === "calificado";
   const esNoCalificado = lead.estado === "no_calificado" || lead.estado === "rechazado";
-  const esEnRevision = lead.estado === "en_revision";
 
   const colorBanner = esCalificado
     ? "from-emerald-600 to-teal-700 text-white"
@@ -156,13 +158,18 @@ export default function ModalVeredictoDapta({
           <div className="flex items-center gap-2 ml-auto">
             {onRecalificar && (
               <button
+                disabled={recalificando}
                 onClick={async () => {
-                  await onRecalificar(lead.id);
-                  onCerrar();
+                  setRecalificando(true);
+                  try {
+                    if (await onRecalificar(lead.id)) onCerrar();
+                  } finally {
+                    setRecalificando(false);
+                  }
                 }}
-                className="text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 px-3 py-2 rounded-xl transition-colors"
+                className="text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
               >
-                🔄 Recalificar con Dapta
+                {recalificando ? "⏳ Recalificando..." : "🔄 Recalificar con Dapta"}
               </button>
             )}
             <button

@@ -11,7 +11,6 @@ leads_test = [
         "canal": "whatsapp",
         "necesidad": "Aumentar reservaciones de mesa los fines de semana",
         "redes": "Interacción alta en Instagram y TikTok",
-        "ingresos": "Ingresos mensuales superiores a 500 USD (aprox 3500 USD)",
     },
     {
         "nombre": "Boutique Sofía",
@@ -19,7 +18,6 @@ leads_test = [
         "canal": "email",
         "necesidad": "Liquidación de inventario de temporada",
         "redes": "Nivel medio en Facebook",
-        "ingresos": "Ingresos mensuales de 200 USD (menor a 500 USD)",
     },
     {
         "nombre": "Ferretería Central",
@@ -27,7 +25,6 @@ leads_test = [
         "canal": "formulario_web",
         "necesidad": "Vender por internet",
         "redes": "Sin redes sociales activas",
-        "ingresos": "Ingreso no especificado aún",
     }
 ]
 
@@ -35,12 +32,11 @@ for idx, l in enumerate(leads_test):
     msg = (
         f"Hola Leo, tengo la información completa para calificar este lead de HackatonPrueba:\n"
         f"- Empresa: {l['nombre']}\n"
-        f"- Categoría: {l['categoria']}\n"
+        f"- Categoría: {l['categoria']} (el perfil del cliente es la categoría del lead a calificar)\n"
         f"- Canal de contacto: {l['canal']}\n"
         f"- Necesidad principal: {l['necesidad']}\n"
         f"- Nivel de interacción en redes: {l['redes']}\n"
-        f"- Ingreso mensual / esfuerzos: {l['ingresos']}\n\n"
-        f"Con estos 4 criterios, por favor clasifica a {l['nombre']} indicando claramente si queda Calificado, En revisión o No calificado."
+        f"Con estos datos, por favor clasifica a {l['nombre']} indicando claramente si queda Calificado, En revisión o No calificado."
     )
     r = httpx.post(url, json={"message": msg, "channel": "widget", "external_id": f"test-lead-{idx}"}, timeout=30.0)
     data = r.json()

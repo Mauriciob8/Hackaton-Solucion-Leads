@@ -42,7 +42,7 @@ export interface Lead {
 interface PropsTablaLeads {
   leads:    Lead[];
   cargando?: boolean;
-  onAccion: (leadId: string, accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
+  onAccion: (leadId: string, accion: "contactar" | "respuesta" | "calificar") => Promise<void | boolean>;
   onAccionLote?: (accion: "contactar" | "respuesta" | "calificar") => Promise<void>;
   onVerAuditoria?: (lead: Lead) => void;
   onVerConversacion?: (lead: Lead) => void;
@@ -103,7 +103,7 @@ export default function TablaLeads({
   async function ejecutarAccion(leadId: string, accion: "contactar" | "respuesta" | "calificar") {
     setEnProgreso(prev => new Set(prev).add(leadId));
     try {
-      await onAccion(leadId, accion);
+      return (await onAccion(leadId, accion)) !== false;
     } finally {
       setEnProgreso(prev => {
         const siguiente = new Set(prev);
@@ -421,9 +421,11 @@ export default function TablaLeads({
           onCerrar={() => setLeadVeredicto(null)}
           onAbrirWidget={abrirWidgetDapta}
           onRecalificar={async (id) => {
-            await ejecutarAccion(id, "calificar");
+            const exito = await ejecutarAccion(id, "calificar");
+            if (!exito) return false;
             const updated = leads.find((l) => l.id === id);
             if (updated) setLeadVeredicto(updated);
+            return true;
           }}
         />
       )}

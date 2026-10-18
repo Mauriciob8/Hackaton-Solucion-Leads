@@ -35,24 +35,75 @@ class CalificacionDaptaTests(unittest.TestCase):
         )
 
         payload = post.call_args.kwargs["json"]
+        self.assertEqual(
+            payload["variables"]["perfil_cliente"],
+            "Mecánica Automotriz",
+        )
+        self.assertEqual(
+            payload["variables"]["datos_lead"]["perfil_cliente"],
+            {"categoria": "Mecánica Automotriz"},
+        )
+        self.assertTrue(
+            payload["message"].startswith("Califica este lead utilizando")
+        )
+        indice_calificar = payload["message"].index("Califica este lead")
+        indice_perfil = payload["message"].index("El perfil del cliente")
+        self.assertGreater(indice_perfil, indice_calificar)
+        self.assertIn(
+            "El perfil del cliente es la categoría del lead a calificar: "
+            "Mecánica Automotriz.",
+            payload["message"][indice_calificar:],
+        )
         self.assertIn('"categoria": "Mecánica Automotriz"', payload["message"])
         self.assertIn(
             '"perfil_cliente": {"categoria": "Mecánica Automotriz"}',
             payload["message"],
         )
         self.assertIn(
-            "el perfil ideal del cliente que solicita la calificacion",
+            "El perfil del cliente es la categoría del lead a calificar",
             payload["message"],
         )
-        self.assertIn("sector industrial: Mecánica Automotriz", payload["message"])
-        self.assertNotIn("ingresos", payload["message"].lower())
+        self.assertIn(
+            "El perfil del cliente es la categoría del lead a calificar: "
+            "Mecánica Automotriz",
+            payload["message"],
+        )
+        self.assertIn(
+            "No hagas preguntas ni solicites información adicional.",
+            payload["message"],
+        )
+        self.assertNotIn("ingreso", payload["message"].lower())
+        self.assertNotIn("esfuerzo", payload["message"].lower())
         self.assertIn("SCORE: N%", payload["message"])
         self.assertIn('"respuesta_microsondeo": "A"', payload["message"])
         self.assertIn('"actividad_en_redes": "No informada"', payload["message"])
-        self.assertEqual(payload["external_id"], "lead-lead-123")
+        self.assertTrue(payload["external_id"].startswith("lead-lead-123-"))
         self.assertEqual(estado, EstadoLead.NO_CALIFICADO.value)
         self.assertEqual(score, 0.0)
         self.assertIn("NO_CALIFICADO", feedback)
+
+    @patch("backend.servicios.rag_agente.httpx.post")
+    def test_recalificaciones_generan_una_solicitud_nueva_para_dapta(self, post):
+        post.return_value = Mock(
+            json=Mock(return_value={
+                "agent_id": AGENT_ID,
+                "output": "ESTADO: CALIFICADO. SCORE: 87%.",
+            })
+        )
+
+        for _ in range(2):
+            calificar_con_agente_dapta(
+                nombre_negocio="Clínica Sonrisas",
+                sector="Salud",
+                lead_id="lead-123",
+            )
+
+        ids_externos = [
+            llamada.kwargs["json"]["external_id"]
+            for llamada in post.call_args_list
+        ]
+        self.assertEqual(len(ids_externos), 2)
+        self.assertNotEqual(ids_externos[0], ids_externos[1])
 
     @patch("backend.servicios.rag_agente.httpx.post")
     def test_score_se_usa_solo_si_lo_devuelve_dapta(self, post):
@@ -95,7 +146,11 @@ class CalificacionDaptaTests(unittest.TestCase):
         casos = [
             ("Calificado - 87%", EstadoLead.CALIFICADO.value, 0.87),
             ("En revisión - 50%", EstadoLead.EN_REVISION.value, 0.5),
+            ("En revisión - 73%", EstadoLead.EN_REVISION.value, 0.73),
+            ("En revisión - 74%", EstadoLead.CALIFICADO.value, 0.74),
+            ("En revisión - 90%", EstadoLead.CALIFICADO.value, 0.9),
             ("No calificado - 12%", EstadoLead.NO_CALIFICADO.value, 0.12),
+            ("No calificado - 87%", EstadoLead.NO_CALIFICADO.value, 0.87),
         ]
         for salida, estado_esperado, score_esperado in casos:
             with self.subTest(salida=salida):
@@ -161,7 +216,7 @@ class CalificacionDaptaTests(unittest.TestCase):
         )
 
     @patch("backend.servicios.rag_agente.httpx.post")
-    def test_respuesta_sin_estado_explicito_no_califica_automaticamente(self, post):
+    def test_score_sin_estado_explicito_califica_desde_el_umbral(self, post):
         post.return_value = Mock(
             json=Mock(return_value={
                 "agent_id": AGENT_ID,
@@ -174,7 +229,7 @@ class CalificacionDaptaTests(unittest.TestCase):
             sector="Restaurante",
         )
 
-        self.assertEqual(estado, EstadoLead.EN_REVISION.value)
+        self.assertEqual(estado, EstadoLead.CALIFICADO.value)
         self.assertEqual(score, 0.82)
 
     @patch("backend.servicios.rag_agente.httpx.post")

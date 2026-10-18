@@ -6,7 +6,7 @@ url = f"https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/{agent_id}/execut
 
 # Let's test a message
 payload = {
-    "message": "Hola, somos Restaurante El Buen Sabor, categoría Restaurante. Buscamos conseguir más comensales los fines de semana. Tenemos ingresos mayores a 500 y llegamos por email.",
+    "message": "Hola, somos Restaurante El Buen Sabor, categoría Restaurante. El perfil del cliente es la categoría del lead a calificar: Restaurante. Buscamos conseguir más comensales los fines de semana y llegamos por email.",
     "channel": "widget",
     "external_id": "test-lead-123"
 }

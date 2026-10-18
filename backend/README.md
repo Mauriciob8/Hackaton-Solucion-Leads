@@ -21,8 +21,12 @@ VARIABLES DE ENTORNO (opcionales)
 
 La calificación del pipeline consulta este agente en cada solicitud. Si Dapta
 no responde, la API devuelve un error y no inventa ni persiste un veredicto.
-La categoría del lead se incluye en los datos enviados al agente; su estado
-persistido en el pipeline corresponde al veredicto devuelto.
+La categoría del lead se incluye en los datos enviados al agente y se declara
+explícitamente como el perfil del cliente a calificar; no se solicita ingreso
+mensual ni esfuerzo. Además, se envía como la variable `perfil_cliente` y
+dentro de `variables.datos_lead`. El estado persistido en el pipeline
+corresponde al veredicto devuelto. Si Dapta devuelve `EN_REVISION` con un
+score de 74% o superior, el pipeline marca el lead como `calificado`.
 La respuesta de calificación debe incluir `SCORE: N%` (0 a 100). El backend
 guarda el score como fracción de 0 a 1 en `score_calidad_dapta` y la API
 también devuelve `score_calidad_porcentaje` para expresar el valor de 0 a 100.
