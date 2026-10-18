@@ -99,6 +99,7 @@ def detectar(solicitud: SolicitudDeteccion):
     )
 
     ids_insertados = []
+    duplicados_omitidos = 0
     for lead in leads_detectados:
         data = lead.dict()
         data["campana_id"] = None
@@ -108,7 +109,10 @@ def detectar(solicitud: SolicitudDeteccion):
         if data.get("fecha_respuesta"):
             data["fecha_respuesta"] = data["fecha_respuesta"].isoformat()
 
-        insertar_lead(data)
+        id_insertado = insertar_lead(data, permitir_duplicados=False)
+        if not id_insertado:
+            duplicados_omitidos += 1
+            continue
 
         # Registrar costo de scraping como evento atómico
         registrar_evento_costo({
@@ -129,12 +133,17 @@ def detectar(solicitud: SolicitudDeteccion):
             "timestamp":   datetime.utcnow().isoformat(),
         })
 
-        ids_insertados.append(data["id"])
+        ids_insertados.append(id_insertado)
+
+    mensaje = f"{len(ids_insertados)} leads nuevos detectados y guardados"
+    if duplicados_omitidos > 0:
+        mensaje += f" ({duplicados_omitidos} duplicados omitidos)"
 
     return {
-        "mensaje":          f"{len(ids_insertados)} leads detectados y guardados",
-        "leads_detectados": len(ids_insertados),
-        "ids":              ids_insertados,
+        "mensaje":             mensaje,
+        "leads_detectados":    len(ids_insertados),
+        "duplicados_omitidos": duplicados_omitidos,
+        "ids":                 ids_insertados,
     }
 
 

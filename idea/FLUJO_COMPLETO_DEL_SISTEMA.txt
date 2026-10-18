@@ -403,13 +403,21 @@ en cada fase los cuatro aspectos solicitados:
   d) Qué experimenta el usuario del dashboard y el prospecto contactado.
 
 ────────────────────────────────────────────────────────────────────────────────
-PASO 1: DETECCIÓN (INTENT SCRAPING)
+PASO 1: DETECCIÓN (INTENT SCRAPING) Y DEDUPLICACIÓN AUTOMÁTICA
 ────────────────────────────────────────────────────────────────────────────────
   • Qué ocurre técnicamente:
     El usuario o un cron automático invoca POST /api/leads/detectar. El servicio
     scraper.py ejecuta búsquedas dirigidas en Google Maps, portales de empleo y
-    páginas web. Para cada negocio detectado, evalúa expresiones regulares y modelos
+    páginas web sobre un conjunto benchmark de 50 pymes reales de Colombia.
+    Para cada negocio detectado, evalúa expresiones regulares y modelos
     heurísticos buscando palabras de dolor ('tarda en responder', 'vacante asesor').
+
+    Mecanismo de Deduplicación en Base de Datos:
+    Antes de persistir, el motor invoca 'buscar_lead_duplicado' para verificar si el
+    negocio ya existe en la base de datos (por nombre comercial normalizado, teléfono
+    o correo electrónico). Si ya existe, se omite de forma transparente sin incurrir
+    en gastos redundantes de scraping o tokens LLM, y la API reporta el conteo de
+    duplicados omitidos ('duplicados_omitidos').
   • Datos creados en BD:
     Se inserta un registro en la tabla 'leads':
       id: UUID v4 único.
@@ -418,8 +426,9 @@ PASO 1: DETECCIÓN (INTENT SCRAPING)
       tipo_senal: 'reseña_negativa_atencion' (o la que aplique).
       fuente_deteccion: 'google_maps' | 'portal_empleo' | 'auditoria_web'.
       estado: 'detectado'.
+      feedback_dapta: NULL (hasta su calificación).
   • Costos registrados:
-    Se crean dos registros en la tabla 'eventos_costo':
+    Para cada lead nuevo (no duplicado), se crean dos registros en 'eventos_costo':
       1. tipo='scraping' por $0.0001 USD (costo de cómputo/llamada API de búsqueda).
       2. tipo='tokens_llm' por $0.0003 USD (análisis de la señal con micro-LLM).
     El lead acumula: costo_scraping=$0.0001, costo_tokens=$0.0003, costo_envio=$0.0000.
@@ -427,7 +436,8 @@ PASO 1: DETECCIÓN (INTENT SCRAPING)
   • Qué ve el usuario / prospecto:
     El usuario observa en el dashboard que el contador de 'Leads Detectados' se
     incrementa y el nuevo lead aparece en la TablaLeads con una insignia azul
-    'Detectado' y un botón activo de '📤 Contactar'. El prospecto aún no es contactado.
+    'Detectado' y un botón activo de '📤 Contactar'. Los duplicados se descartan
+    sin costo operativo. El prospecto aún no es contactado.
 
 ────────────────────────────────────────────────────────────────────────────────
 PASO 2: ANÁLISIS RAG Y SELECCIÓN DE MICRO-SONDEO
@@ -506,23 +516,40 @@ PASO 5: GENERACIÓN DE PROPUESTA PERSONALIZADA (RAG)
     sino una solución a la medida de lo que él mismo acaba de responder.
 
 ────────────────────────────────────────────────────────────────────────────────
-PASO 6: CALIFICACIÓN DAPTA (AGENTE CALIFICADOR)
+PASO 6: CALIFICACIÓN CON EL AGENTE DE TEXTO DAPTA (API REAL V2)
 ────────────────────────────────────────────────────────────────────────────────
   • Qué ocurre técnicamente:
     El usuario o un trigger automático invoca POST /api/leads/{id}/calificar.
-    El sistema conecta con el Agente Calificador de Dapta (simulado en demo según
-    heurísticas, o vía webhook HTTP real en producción). El evaluador asigna
-    un score de 0.0 a 1.0; si score >= 0.60, el lead es calificado positivamente.
+    El backend ejecuta una llamada HTTP POST al endpoint oficial del Agente de Texto Dapta:
+    https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc/execute
+    
+    Se remiten en el payload:
+      - Nombre de la empresa y su Categoría ('perfil_cliente').
+      - Canal de contacto y necesidad principal (señal de dolor).
+      - Respuesta del micro-sondeo y propuesta comercial generada.
+    
+    El Agente Dapta analiza los antecedentes y emite su veredicto estructurado.
+    El servicio 'rag_agente.py' interpreta el resultado mediante regex y lectura de
+    llamadas a herramientas ('tool_calls'):
+      - Estados oficiales: 'calificado', 'no_calificado' o 'en_revision'.
+      - Score de calidad porcentual normalizado (0% a 100%).
+      - Si ocurre un fallo de conexión o caída de servicio, se arroja HTTP 502 (DaptaAgentError)
+        y NO se inventa ninguna calificación ni se corrompe el estado.
   • Datos modificados en BD:
-    estado pasa a 'calificado' (o 'rechazado' si no superó el umbral).
-    calificado_dapta se fija en 1 (o 0).
+    estado se actualiza con el veredicto oficial ('calificado', 'no_calificado' o 'en_revision').
+    calificado_dapta se fija en 1 si fue calificado, o 0 en caso contrario.
     score_calidad_dapta guarda el valor numérico (ej: 0.87).
+    feedback_dapta almacena el análisis y justificación textual íntegra emitida por el agente.
   • Costos registrados:
-    En entorno demo no se genera costo adicional; en producción se registra la
-    tarifa de la API de Dapta si existiese.
+    En entorno del hackathon la ejecución del agente Dapta se computa de acuerdo al uso de la API v2.
   • Qué ve el usuario / prospecto:
-    El usuario ve la insignia cambiar a verde esmeralda 'Calificado ✅' con su score.
-    El lead calificado queda listo para ser transferido al equipo de ventas o al CRM.
+    El usuario ve la insignia actualizarse en tiempo real:
+      - Verde: 'Calificado ✅' con su score (ej: 87%).
+      - Rojo: 'No Calificado ❌'.
+      - Púrpura: 'En Revisión ⚠️'.
+    Aparece una notificación flotante toast con el veredicto del agente, y en la tabla se
+    habilita el botón '📋 Veredicto Dapta' para abrir el modal explicativo y el botón
+    '💬 Chat Susan' para interactuar en vivo con el widget embebido.
 
 ────────────────────────────────────────────────────────────────────────────────
 PASO 7: CIERRE DE MÉTRICA (UNIT ECONOMICS COMPUTATION)
@@ -1004,6 +1031,22 @@ profesional (Dark Mode forzado) y distribución de alta densidad de información
    - Descarga un archivo estructurado con todos los leads aprobados por Dapta, listos
      para ser transferidos a HubSpot, Salesforce o canal comercial humano.
 
+10. ModalVeredictoDapta.tsx (MODAL DE VEREDICTO DEL AGENTE DAPTA)
+    - Ventana interactiva que despliega el dictamen oficial emitido por la Agente Susan (Dapta AI):
+      * Ficha de la empresa con nombre comercial y Categoría evaluada (Sector).
+      * Insignia oficial de clasificación: 'Calificado ✅', 'No Calificado ❌' o 'En Revisión ⚠️'.
+      * Score de calidad porcentual otorgado por el agente (0% - 100%).
+      * Transcripción textual íntegra del feedback y justificación del modelo.
+      * Botón 'Recalificar con Dapta' para reevaluaciones bajo demanda.
+      * Botón '💬 Abrir Chat con Susan' que enlaza automáticamente con el widget interactivo.
+
+11. WIDGET EMBEBIDO DE TEXTO DAPTA (frontend/app/layout.tsx)
+    - Inyección global del script oficial:
+      https://widget-v2.dapta.ai/agent.min.js?agentId=a2f51962-1754-4ff4-a5d3-0082625607cc
+    - Permite al usuario y al jurado mantener una conversación interactiva en vivo con la
+      misma Agente Susan de Dapta, transmitiendo dinámicamente las variables de contexto
+      (empresa, categoría, canal y señales) mediante 'window.setConversationParams'.
+
 ================================================================================
 12. API REFERENCE COMPLETA
 ================================================================================
@@ -1028,7 +1071,7 @@ PIPELINE DE LEADS (/api/leads)
     • Respuesta 200: {"pagina": 1, "tamano": 20, "total": 15, "leads": [...]}
 
   POST /api/leads/detectar
-    • Descripción: Lanza el scraper en fuentes gratuitas y almacena nuevos leads.
+    • Descripción: Lanza el scraper en fuentes gratuitas y almacena nuevos leads, descartando duplicados automáticamente.
     • Request Body:
       {
         "sector": "restaurante",
@@ -1036,11 +1079,17 @@ PIPELINE DE LEADS (/api/leads)
         "canal_preferido": "whatsapp",
         "cantidad_maxima": 10
       }
-    • Respuesta 200: {"mensaje": "10 leads detectados y guardados", "leads_detectados": 10, "ids": [...]}
+    • Respuesta 200:
+      {
+        "mensaje": "10 leads nuevos detectados y guardados (0 duplicados omitidos)",
+        "leads_detectados": 10,
+        "duplicados_omitidos": 0,
+        "ids": [...]
+      }
 
   GET /api/leads/{id}
     • Descripción: Obtiene el registro completo de un lead por su identificador UUID.
-    • Respuesta 200: Objeto JSON con los 24 campos del lead.
+    • Respuesta 200: Objeto JSON con los 25 campos del lead (incluyendo feedback_dapta).
 
   POST /api/leads/{id}/contactar
     • Descripción: Genera el micro-sondeo mediante RAG y lo despacha por el canal del lead.
@@ -1066,14 +1115,18 @@ PIPELINE DE LEADS (/api/leads)
       }
 
   POST /api/leads/{id}/calificar
-    • Descripción: Envía el lead respondido al Agente Calificador de Dapta.
+    • Descripción: Envía el lead y su categoría al Agente de Texto Dapta (ID: a2f51962-1754-4ff4-a5d3-0082625607cc) vía endpoint execute.
     • Requisito: El lead debe estar en estado 'respondio'.
     • Respuesta 200:
       {
-        "mensaje": "Lead calificado ✅ por Dapta",
+        "mensaje": "Empresa 'Restaurante El Fogón' clasificada como: calificado",
         "calificado": true,
+        "nuevo_estado": "calificado",
         "score_calidad": 0.87,
-        "nuevo_estado": "calificado"
+        "score_calidad_porcentaje": 87.0,
+        "feedback_dapta": "ESTADO: CALIFICADO. SCORE: 87%. Cumple con el perfil de cliente y necesidad urgente...",
+        "categoria": "restaurante",
+        "nombre_negocio": "Restaurante El Fogón"
       }
 
   GET /api/leads/calificados/exportar-csv
@@ -1167,12 +1220,13 @@ CREATE TABLE IF NOT EXISTS leads (
     tipo_senal          TEXT NOT NULL,              -- Clasificación de la señal detectada
     fuente_deteccion    TEXT DEFAULT 'google_maps',-- google_maps | portal_empleo | auditoria_web
     canal               TEXT DEFAULT 'email',      -- email | whatsapp | formulario_web
-    estado              TEXT DEFAULT 'detectado',  -- detectado | contactado | respondio | calificado | rechazado
+    estado              TEXT DEFAULT 'detectado',  -- detectado | contactado | respondio | calificado | no_calificado | en_revision | rechazado
     pregunta_sondeo     TEXT,                      -- Texto del micro-sondeo enviado
     opcion_respondida   TEXT,                      -- 'A' o 'B'
     propuesta_generada  TEXT,                      -- Texto de la propuesta personalizada RAG
     calificado_dapta    INTEGER DEFAULT 0,         -- 1 si fue aprobado por Dapta, 0 si no
     score_calidad_dapta REAL DEFAULT 0.0,          -- Puntuación de calidad (0.0 a 1.0)
+    feedback_dapta      TEXT,                      -- Justificación y análisis emitido por el Agente Dapta
     costo_scraping      REAL DEFAULT 0.0,          -- Costo imputado de ingesta en USD
     costo_tokens        REAL DEFAULT 0.0,          -- Costo imputado de LLM en USD
     costo_envio         REAL DEFAULT 0.0,          -- Costo de pasarela de mensajería en USD
@@ -1181,6 +1235,9 @@ CREATE TABLE IF NOT EXISTS leads (
     fecha_respuesta     TEXT,                      -- Timestamp ISO8601 de respuesta
     campana_id          TEXT                       -- Clave foránea opcional a tabla campanas
 );
+
+-- Mecanismo de deduplicación de prospectos (consultas de unicidad por nombre, teléfono o email)
+-- Previene inserciones redundantes y optimiza los unit economics centavo a centavo.
 
 -- Tabla atómica: eventos_costo (auditoría financiera centavo a centavo)
 CREATE TABLE IF NOT EXISTS eventos_costo (
@@ -1241,19 +1298,66 @@ DIAGRAMA ENTIDAD-RELACIÓN (ASCII):
 Para asegurar una experiencia de evaluación fluida durante el hackathon, el sistema
 cuenta con dos capas integradas de datos preconfigurados:
 
-1. BASE DE PYMES SEMILLA PARA SCRAPING (backend/servicios/scraper.py):
-   Incluye un compendio representativo de pymes reales de Colombia con señales
-   genuinas extraídas de fuentes públicas:
-     • Restaurante El Fogón de Abuela (Bogotá): Quejas de 20 min de espera en WhatsApp.
-     • Clínica Dental Sonrisa Perfecta (Medellín): Citas que no fueron confirmadas.
-     • Taller Automotriz Los Mecánicos (Cali): Cotizaciones demoradas por días.
-     • Salón de Belleza Glamour (Barranquilla): Citas perdidas por agenda manual.
-     • Veterinaria PetCare (Bogotá): Sin respuestas fuera de horario comercial.
-     • Inmobiliaria CasaFácil (Bogotá): Prospectos interesados nunca contactados.
-     • Distribuidora TechParts (Medellín): Vacante laboral buscando digitador Excel.
-     • Óptica Visual Plus (Cali): Vacante de asistente de agendamiento en turno partido.
-     • Don Eduardo Papelería (Bogotá): Sitio web con carga lenta (8.2s) sin WhatsApp.
-     • Centro de Yoga Equilibrio (Medellín): Sitio web sin SSL y formulario con 404.
+1. BASE BENCHMARK DE 50 PYMES SEMILLA PARA SCRAPING (backend/servicios/scraper.py):
+   Cumpliendo con los requerimientos oficiales del Reto Dapta, la plataforma incorpora
+   un conjunto de 50 empresas reales con datos completos (nombre, sector, ciudad,
+   teléfono, email, sitio web y señal de dolor contextual) distribuidas en 3 fuentes:
+
+   A. Google Maps (22 empresas con quejas reales de atención/retrasos):
+      • Restaurante El Fogón de Abuela (Bogotá) — 20 min de espera en WhatsApp.
+      • Clínica Dental Sonrisa Perfecta (Medellín) — Citas que no fueron confirmadas.
+      • Taller Automotriz Los Mecánicos (Cali) — Cotizaciones demoradas por días.
+      • Salón de Belleza Glamour (Barranquilla) — Citas perdidas por agenda manual.
+      • Ferretería Don Jaime (Bucaramanga) — Sin listas de precios online.
+      • Veterinaria PetCare (Bogotá) — Sin respuestas fuera de horario comercial.
+      • Panadería El Trigal (Pereira) — Pedidos olvidados en WhatsApp.
+      • Inmobiliaria CasaFácil (Bogotá) — Prospectos interesados nunca contactados.
+      • Gimnasio Heroica Fitness Club (Cartagena) — Sin confirmación de cupos spinning.
+      • Laboratorio Dental Arte & Sonrisas (Bogotá) — Demoras en cotizaciones de prótesis.
+      • Peluquería Canina Pelos y Huellas (Cali) — Sin agendamiento online.
+      • Imprenta y Litografía Costeña (Barranquilla) — Órdenes traspapeladas.
+      • Bufete Legal Gómez & Restrepo Abogados (Medellín) — Propuestas laborales sin seguimiento.
+      • Agencia de Viajes Destinos & Rutas (Bogotá) — Vouchers de hotel sin confirmación.
+      • Farmacia San Nicolás Droguería (Bucaramanga) — Domicilios urgentes sin rastreo.
+      • Hotel Boutique Casa Colonial (Cartagena) — Reservas de aniversario sin respuesta.
+      • Centro Oftalmológico Visión Clara (Medellín) — Enlace de citas con error.
+      • Autoescuela Conduzca Seguro (Bogotá) — Sin atención a mensajes para clases prácticas.
+      • Distribuidora Eléctrica Andina (Cali) — Horas de demora en cotizaciones industriales.
+      • Spa & Bienestar Armonía Natural (Pereira) — Reservas en pareja no registradas.
+      • Lavandería Industrial CleanExpress (Manizales) — Fin de semana desatendido para uniformes.
+      • Tienda de Mascotas Guau & Miau (Barranquilla) — Despachos sin número de guía.
+
+   B. Portales de Empleo (15 empresas con vacantes manuales sustituibles con IA):
+      • Distribuidora TechParts Colombia (Medellín) — Asesor comercial junior con Excel.
+      • Clínica Óptica Visual Plus (Cali) — Asistente de citas en turno partido.
+      • Agencia de Seguros ConfiaSeg (Bogotá) — Ventas telefónicas sin CRM.
+      • Fintech CreceYa Colombia (Bogotá) — Community Manager manual todo el día.
+      • Logística Rápida Andina (Medellín) — Asistente de operaciones para hojas de cálculo.
+      • Concesionario Motos del Valle (Cali) — Asesor comercial para responder WhatsApp y libreta.
+      • Confecciones & Textiles Antillana (Barranquilla) — Auxiliar comercial para digitar pedidos.
+      • Agencia Digital Impulso Pyme (Bogotá) — Ejecutivo de cuentas para agendamiento manual.
+      • Laboratorio Clínico VidaLab (Bucaramanga) — Recepcionista para enviar PDF por WhatsApp.
+      • Distribuidora Farmacéutica del Caribe (Cartagena) — Consultas de stock por mensaje de texto.
+      • Seguridad Privada Vigilantes Unidos (Pereira) — Reporte de novedades manual por chat.
+      • Instituto de Idiomas GlobalSpeak (Medellín) — Clasificación manual de prospectos web.
+      • Cooperativa Financiera CooProgreso (Manizales) — Solicitud de documentos en Excel.
+      • Mudanzas y Cargas Nacionales (Bogotá) — Cotizador telefónico manual.
+      • Frigorífico & Alimentos El Corral (Cali) — Consolidación de pedidos cárnicos por texto.
+
+   C. Auditoría Web Automatizada (13 empresas con deficiencias técnicas detectadas):
+      • Papelería y Útiles Don Eduardo (Bogotá) — Carga lenta en 8.2s y sin WhatsApp.
+      • Centro de Yoga Equilibrio (Medellín) — Sin SSL y formulario con error 404.
+      • Estudio de Arquitectura Vanguardia (Cali) — Certificado SSL vencido y formulario roto.
+      • Academia Musical Armonía (Barranquilla) — Carga en 9.4s sin catálogo interactivo.
+      • Consultores Contables & Tributarios Asesores (Bogotá) — Sin llamado a la acción ni chat.
+      • Centro de Fisioterapia Activa (Medellín) — Botón de agendamiento desconfigurado.
+      • Eventos y Catering Delicias Gourmet (Cartagena) — PDF de 20MB que bloquea móviles.
+      • Muebles & Diseños Contemporáneos (Bucaramanga) — Tecnología web obsoleta.
+      • Empresa de Aseo y Mantenimiento LimpioYa (Cali) — Sin HTTPS y formulario desatendido.
+      • Joyería y Accesorios Filigrana Real (Barranquilla) — E-commerce sin pasarela ni chat.
+      • Inversiones Inmobiliarias Sol & Playa (Cartagena) — Sin buscador por precio ni WhatsApp.
+      • Hospital Veterinario 24 Horas San Francisco (Pereira) — Sin teléfono móvil visible y carga lenta.
+      • Empaques y Cartones de Colombia (Manizales) — Formulario de contacto con error 500.
 
 2. DATOS DEMO DE FALLBACK (frontend/app/datos_demo.json):
    En caso de que el backend se encuentre momentáneamente apagado o la base de datos
