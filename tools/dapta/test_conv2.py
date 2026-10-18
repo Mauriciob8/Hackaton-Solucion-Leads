@@ -1,7 +1,10 @@
+from pathlib import Path
 import httpx
 import json
 
-with open("test_execute_resp.json", "r", encoding="utf-8") as f:
+carpeta_datos = Path(__file__).resolve().parent / "data"
+
+with open(carpeta_datos / "test_execute_resp.json", "r", encoding="utf-8") as f:
     prev = json.load(f)
 
 conv_id = prev.get("conversation_id")
@@ -17,7 +20,7 @@ payload = {
 
 r = httpx.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30.0)
 data = r.json()
-with open("test_execute_resp2.json", "w", encoding="utf-8") as f:
+with open(carpeta_datos / "test_execute_resp2.json", "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 print("Response 2 output:")
 print(data.get("output"))

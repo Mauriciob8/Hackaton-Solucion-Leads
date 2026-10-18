@@ -70,6 +70,7 @@ DAPTA_AGENT_EXECUTE_URL = os.environ.get(
     "DAPTA_AGENT_EXECUTE_URL",
     f"https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/{DAPTA_AGENT_ID}/execute"
 )
+DAPTA_TIMEOUT_SECONDS = float(os.environ.get("DAPTA_TIMEOUT_SECONDS", "90"))
 
 # ---------------------------------------------------------------------------
 # Límites operativos

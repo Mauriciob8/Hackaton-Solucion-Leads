@@ -7,6 +7,7 @@ y saltos de página limpios.
 """
 
 import os
+from pathlib import Path
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -195,6 +196,7 @@ def generar_pdf_desde_txt(ruta_txt: str, ruta_pdf: str):
 
 
 if __name__ == "__main__":
-    txt_origen = "FLUJO_COMPLETO_DEL_SISTEMA.txt"
-    pdf_destino = os.path.join("idea", "FLUJO_COMPLETO_DEL_SISTEMA.pdf")
+    raiz_proyecto = Path(__file__).resolve().parents[2]
+    txt_origen = raiz_proyecto / "FLUJO_COMPLETO_DEL_SISTEMA.txt"
+    pdf_destino = raiz_proyecto / "idea" / "FLUJO_COMPLETO_DEL_SISTEMA.pdf"
     generar_pdf_desde_txt(txt_origen, pdf_destino)

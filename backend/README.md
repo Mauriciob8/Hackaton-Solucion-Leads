@@ -16,6 +16,7 @@ VARIABLES DE ENTORNO (opcionales)
   COSTO_EMAIL=0.0002                 # Costo por email en USD
   COSTO_WHATSAPP=0.0350              # Costo por mensaje WhatsApp en USD
   OPENAI_API_KEY=sk-...              # Para conectar LLM real (opcional)
+  DAPTA_TIMEOUT_SECONDS=90           # Tiempo máximo de espera de respuesta de Dapta
   DAPTA_AGENT_ID=a2f51962-1754-4ff4-a5d3-0082625607cc
   DAPTA_AGENT_EXECUTE_URL=https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc/execute
 

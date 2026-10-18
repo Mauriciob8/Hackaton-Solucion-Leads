@@ -26,6 +26,7 @@ import httpx
 from backend.config import (
     DAPTA_AGENT_ID,
     DAPTA_AGENT_EXECUTE_URL,
+    DAPTA_TIMEOUT_SECONDS,
 )
 from backend.modelos.lead import EstadoLead
 
@@ -337,10 +338,15 @@ def calificar_con_agente_dapta(
             DAPTA_AGENT_EXECUTE_URL,
             json=payload,
             headers={"Content-Type": "application/json"},
-            timeout=25.0,
+            timeout=DAPTA_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         data = response.json()
+    except httpx.TimeoutException as exc:
+        raise DaptaAgentError(
+            f"Dapta no respondió dentro de {DAPTA_TIMEOUT_SECONDS:g} segundos. "
+            "La calificación no se guardó; puedes intentarlo nuevamente."
+        ) from exc
     except (httpx.HTTPError, ValueError) as exc:
         raise DaptaAgentError(
             f"No se pudo obtener una calificación del agente Dapta: {exc}"

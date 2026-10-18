@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from fastapi import HTTPException
 import httpx
 
+from backend.config import DAPTA_TIMEOUT_SECONDS
 from backend.modelos.lead import EstadoLead
 from backend.rutas import leads as rutas_leads
 from backend.servicios.rag_agente import (
@@ -78,6 +79,7 @@ class CalificacionDaptaTests(unittest.TestCase):
         self.assertIn('"respuesta_microsondeo": "A"', payload["message"])
         self.assertIn('"actividad_en_redes": "No informada"', payload["message"])
         self.assertTrue(payload["external_id"].startswith("lead-lead-123-"))
+        self.assertEqual(post.call_args.kwargs["timeout"], DAPTA_TIMEOUT_SECONDS)
         self.assertEqual(estado, EstadoLead.NO_CALIFICADO.value)
         self.assertEqual(score, 0.0)
         self.assertIn("NO_CALIFICADO", feedback)
@@ -273,6 +275,19 @@ class CalificacionDaptaTests(unittest.TestCase):
         post.side_effect = httpx.ConnectError("conexión rechazada")
 
         with self.assertRaises(DaptaAgentError):
+            calificar_con_agente_dapta(
+                nombre_negocio="Clínica Sonrisas",
+                sector="Salud",
+            )
+
+    @patch("backend.servicios.rag_agente.httpx.post")
+    def test_timeout_de_dapta_indica_que_no_se_guardo(self, post):
+        post.side_effect = httpx.ReadTimeout("lectura agotó el tiempo")
+
+        with self.assertRaisesRegex(
+            DaptaAgentError,
+            rf"Dapta no respondió dentro de {DAPTA_TIMEOUT_SECONDS:g} segundos.*no se guardó",
+        ):
             calificar_con_agente_dapta(
                 nombre_negocio="Clínica Sonrisas",
                 sector="Salud",

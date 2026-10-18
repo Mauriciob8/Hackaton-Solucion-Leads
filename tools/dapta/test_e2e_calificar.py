@@ -1,5 +1,8 @@
+from pathlib import Path
 import httpx
 import json
+
+carpeta_datos = Path(__file__).resolve().parent / "data"
 
 # 1. Obtener leads
 r = httpx.get("http://127.0.0.1:8000/api/leads?tamano=10")
@@ -29,9 +32,9 @@ if lead_to_test:
     res_cal = httpx.post(f"http://127.0.0.1:8000/api/leads/{lead_id}/calificar", timeout=35.0)
     print("Status code:", res_cal.status_code)
     cal_data = res_cal.json()
-    with open("cal_result.json", "w", encoding="utf-8") as f:
+    with open(carpeta_datos / "cal_result.json", "w", encoding="utf-8") as f:
         json.dump(cal_data, f, indent=2, ensure_ascii=False)
-    print("Respuesta de calificación guardada en cal_result.json:")
+    print(f"Respuesta de calificación guardada en {carpeta_datos / 'cal_result.json'}:")
     print("Nuevo estado de la empresa:", cal_data.get("nuevo_estado"))
     print("Categoría enviada:", cal_data.get("categoria"))
     print("Feedback Dapta:", cal_data.get("feedback_dapta"))

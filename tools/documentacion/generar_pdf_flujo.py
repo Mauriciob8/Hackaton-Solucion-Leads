@@ -271,9 +271,10 @@ def generar_pdf(txt_path: str, pdf_output_path: str):
 
 
 if __name__ == "__main__":
-    txt_origen = os.path.abspath("FLUJO_COMPLETO_DEL_SISTEMA.txt")
-    pdf_raiz = os.path.abspath("FLUJO_COMPLETO_DEL_SISTEMA.pdf")
-    pdf_idea = os.path.abspath(os.path.join("idea", "FLUJO_COMPLETO_DEL_SISTEMA.pdf"))
+    raiz_proyecto = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    txt_origen = os.path.join(raiz_proyecto, "FLUJO_COMPLETO_DEL_SISTEMA.txt")
+    pdf_raiz = os.path.join(raiz_proyecto, "FLUJO_COMPLETO_DEL_SISTEMA.pdf")
+    pdf_idea = os.path.join(raiz_proyecto, "idea", "FLUJO_COMPLETO_DEL_SISTEMA.pdf")
 
     generar_pdf(txt_origen, pdf_raiz)
 

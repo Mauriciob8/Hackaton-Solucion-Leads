@@ -1,5 +1,9 @@
+from pathlib import Path
 import httpx
 import json
+
+carpeta_datos = Path(__file__).resolve().parent / "data"
+archivo_salida = carpeta_datos / "agent_details.json"
 
 url2 = "https://agents-v2.dapta.ai/text-agent-v2/api/v2/agents/a2f51962-1754-4ff4-a5d3-0082625607cc"
 r2 = httpx.get(url2, headers={
@@ -7,9 +11,9 @@ r2 = httpx.get(url2, headers={
     "Content-Type": "application/json"
 })
 data = r2.json()
-with open("agent_details.json", "w", encoding="utf-8") as f:
+with open(archivo_salida, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
-print("Saved agent_details.json")
+print(f"Saved {archivo_salida}")
 print("Instructions:", data.get("instructions"))
 print("Purpose:", data.get("purpose"))
 print("Variables:", data.get("variables"))

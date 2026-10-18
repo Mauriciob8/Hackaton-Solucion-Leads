@@ -1,284 +1,0 @@
-Para darle la vuelta y encontrar la ventaja creativa, primero hay que entender cómo lo hace el 90% de la gente (el flujo aburrido e ineficiente) y contrastarlo con la arquitectura creativa que impresiona al jurado y reduce el CPL.
-
-
-1. La arquitectura convencional (Cómo lo hace todo el mundo)
-La mayoría de los equipos implementan un embudo lineal, masivo y frío:
-
-
-Plaintext
-[ Scraping Masivo Indiscriminado ]
-  (Extraen 500 teléfonos de Google Maps de una categoría: ej. "Dentistas en CDMX")
-                 ?
-                 ?
-[ Base de Datos / Deduplicación Simple ]
-  (Quitan teléfonos repetidos en un Postgres / Airtable)
-                 ?
-                 ?
-[ Cold Outreach Masivo (Spam) ]
-  (Envían la misma plantilla genérica por WhatsApp/Email:
-   "Hola, somos X y ayudamos a pymes a crecer...")
-                 ?
-                 ?
-[ Tasa de Rebote / Bloqueos ]
-  (Respuestas < 2%, quejas de spam, cuentas de WhatsApp bloqueadas)
-                 ?
-                 ?
-[ CPL Disparado ]
-  (Pocos leads calificados = Costo por lead real altísimo)
-Por qué este enfoque fracasa o saca baja nota:
-
-
-* Cero contexto: Le escriben a negocios que no necesitan el servicio en ese momento.
-
-* Invasivo: Genera fricción y riesgo de baneo de APIs.
-
-* CPL mentiroso: Aunque el scraping sea "gratis", si necesitas enviar 1,000 mensajes para obtener 1 respuesta, el costo de las APIs de mensajería y el tiempo elevan el CPL calificado.
-
-2. La arquitectura creativa: "Event-Driven & Intent-Based Lead Engine"
-En lugar de raspar por categoría, la arquitectura raspa por señales de necesidad (pain points públicos) y dispara un contacto hiperpersonalizado con Lead Magnet automatizado.
-
-
-Plaintext
-               FUENTES GRATUITAS CON SEÑAL DE DOLOR
-        ??????????????????????????????????????????????????
-        ?                       ?                        ?
- [ Google Maps + Reviews ]  [ Google Jobs / Portales ] [ Web & Social Audit ]
- (Filtro: Reseñas < 3?      (Filtro: Buscan "ventas"  (Detecta: Web lenta,
- quejándose de atención)    o "atención al cliente")   sin botón WhatsApp)
-        ?                       ?                        ?
-        ??????????????????????????????????????????????????
-                                ?
-         [ 1. Ingestion & Normalization Worker (Python) ]
-           ??? Deduplicación por Dominio / Teléfono E.164
-           ??? Enriquecimiento de perfil público
-                                ?
-                                ?
-         [ 2. LLM Pain-Analyzer & Generator (GPT-4o-mini) ]
-           ??? Extrae el "dolor exacto" (ej. "Tardan 4h en contestar")
-           ??? Redacta micro-auditoría personalizada (No venta directa)
-                                ?
-                                ?
-         [ 3. Multi-Channel Outreach Dispatcher ]
-           ??? Canal A: Formulario de contacto web (Puppeteer - Costo $0)
-           ??? Canal B: Transaccional Email (Resend API - Costo ~$0.0001)
-           ??? Canal C: WhatsApp Cloud API (Solo con alta probabilidad)
-                                ?
-                                ?
-         [ 4. Webhook Receiver & Dapta Qualifier Bridge ]
-           ??? Detecta respuesta positiva del lead
-           ??? Envía lead enriquecido al agente calificador de Dapta
-                                ?
-                                ?
-         [ 5. Unit Economics & Analytics Engine ]
-           Calcula en tiempo real por cada canal:
-           • Costo Scraping/Proxy + Costo LLM + Costo Envío
-           • CPL Bruto vs. CPL Calificado (Dapta)
-3. Componentes clave para destacar en el hackathon
-A. El "Scraper con Señal" (Scraping de Intención)
-En lugar de traer cualquier empresa, el scraper aplica un filtro booleano en la fuente:
-
-
-* En Google Maps / Sitios de reseñas: Script que busca palabras clave en comentarios: "pésimo servicio", "no contestan", "lento", "pedí información y nada".
-
-* En ofertas de empleo: Empresas que tienen abierto un puesto de "ejecutivo de ventas inbound" o "recepcionista".
-
-B. Generador de Micro-Auditorías (Contacto de Valor)
-El mensaje que dispara el despachador no dice "Te vendo software", dice:
-
-
-"Hola [Nombre del Negocio], revisando su perfil público notamos que varios clientes mencionan demoras en la respuesta por WhatsApp. Creamos este diagrama/flujo rápido de 3 pasos para automatizar sus respuestas iniciales. ¿Les gustaría revisarlo sin compromiso?"
-
-Esto convierte un contacto frío e invasivo en una consultoría gratuita, aumentando radicalmente la tasa de respuesta.
-
-
-C. El Motor de Costos (Para ganar el punto de CPL)
-El reto exige medir cuánto cuesta cada lead por canal. En la base de datos registras el costo marginal por evento:
-
-
-* Evento Scraping: $0.00 USD (librerías locales) o costo de proxies si aplica.
-
-* Evento Token LLM: $0.00015 USD (análisis del pain point y generación del mensaje con un modelo liviano).
-
-* Evento Envío:
-
-
-o Formulario web: $0.00 USD
-
-o Correo: $0.0002 USD
-
-o WhatsApp: $0.035 USD
-
-* Métrica en Dashboard:
-
-$$\text{CPL Calificado} = \frac{\sum \text{Costos Operativos del Canal}}{\text{Leads Aprobados por Dapta}}$$
-Así demuestran en vivo al jurado qué canal es más barato en volumen y cuál entrega la mejor conversión real al conectarse con el agente de Dapta.
-okay y que tal si a eso primero se le suma un cuestionario de sensibilidad y luego se hace la oferta con el cuestionario real, si es que asi funciona, y adicional a ello es viable crear una plataforma para monitorear todo, eligir el formulario en base al sondeo, el medio, a su vez crear un agente que no se aprenda, use RAG o alguna arquitectura de IA y añadirle mas plus como secciones de metrica? siento que no es solo dar con la solucion sino ir mas alla 
-
-La idea de convertir el flujo en un embudo progresivo (sondeo preliminar $\rightarrow$ oferta personalizada) junto con una plataforma integral de monitoreo y RAG es viable, pero en el contexto de una hackatón requiere delimitar bien la fricción y la complejidad para no perjudicar la conversión.
-1. Viabilidad del Cuestionario de Sensibilidad vs. Fricción
-El concepto de tantear primero la disposición del cliente antes de vender es excelente, pero hay un riesgo operativo: las pymes no suelen contestar formularios largos o en frío.
-Para que funcione sin matar la tasa de respuesta:
-* Micro-sondeo conversacional (1 pregunta): En lugar de enviar un enlace a un formulario externo (Google Forms o Typeform), el agente hace una única pregunta de sondeo directa en el mensaje de apertura.
-o Ejemplo: "Notamos que gestionan reservas por aquí. Para un estudio rápido del sector: ¿su mayor cuello de botella son los clientes que no confirman o la demora en responder mensajes fuera de horario? (Responde 1 o 2)".
-* Bifurcación dinámica según la respuesta:
-o Si responden 1 (No-shows/Confirmaciones) $\rightarrow$ El agente selecciona y dispara la propuesta A (automatización de recordatorios).
-o Si responden 2 (Demora/Fuera de horario) $\rightarrow$ El agente selecciona y dispara la propuesta B (asistente de respuestas inmediatas 24/7).
-* El formulario real de calificación: Una vez que validaron su dolor con esa primera interacción, se les comparte la propuesta con el enlace o se derivan directamente al agente de calificación de Dapta.
-2. Dónde entra la Arquitectura de IA y el RAG
-Para que el jurado no sienta que es solo un script con reglas fijas (if/else), el agente debe operar con razonamiento contextual:
-* RAG para la selección de la oferta y personalización:
-o Base de conocimiento indexada (Vector DB): Contiene casos de éxito reales/simulados, plantillas de soluciones de Dapta por industria (restaurantes, clínicas, retail, servicios profesionales) y objeciones comunes.
-o Inferencia contextual: Al recibir la respuesta del sondeo, el agente combina:
-1. Lo que descubrió en el scraping (ej. calificaciones de Google Maps o datos del perfil).
-2. Lo que la pyme contestó en la pregunta de sensibilidad.
-3. Los documentos recuperados vía RAG sobre esa industria.
-o Resultado: Redacta una propuesta única y contextualmente relevante, sin "alucinar" servicios que la empresa no ofrece.
-3. La Plataforma de Monitoreo: Estructura del Producto
-Diseñar una interfaz que centralice todo el ciclo valida de inmediato el alcance del reto. El tablero puede estructurarse en 3 vistas funcionales:
-A. Centro de Control de Prospección y Enrutamiento
-* Selector de fuentes gratuitas a activar (Google Maps, Directorios, Ofertas laborales).
-* Selección de canal de salida según el tipo de contacto encontrado (Email transaccional vs. WhatsApp API vs. Formulario web).
-* Selector/Visualizador de la estrategia de sondeo activa.
-B. Pipeline en Vivo (Funnel de Leads)
-* Columnas de estado en tiempo real:
-$$\text{Encontrado} \longrightarrow \text{Sondeo Enviado} \longrightarrow \text{Sensibilidad Detectada} \longrightarrow \text{Oferta Entregada} \longrightarrow \text{Lead Calificado (Dapta)}$$
-* Registro detallado (Log) donde se pueda ver el historial de interacción y qué fragmento de la base de conocimiento (RAG) utilizó el agente para responder.
-C. Módulo de Métricas Avanzadas (El core del reto)
-Para superar la métrica básica de CPL, el panel puede contrastar:
-MétricaCanal A (Email)Canal B (WhatsApp)Canal C (Web Form)Costo Operativo Unitario (Scraping + Tokens + Envío)~$0.001 USD~$0.04 USD~$0.001 USDTasa de Respuesta al Sondeo% apertura / click% interacción% retornoCPL BrutoCosto / RespuestaCosto / RespuestaCosto / Respuesta% Calificado por Dapta% aprobado% aprobado% aprobadoCPL Calificado RealCosto / Lead CalificadoCosto / Lead CalificadoCosto / Lead Calificado
-1. Arquitectura de Plataforma (Visión de Producto y Capas)
-Esta vista explica qué componentes funcionales componen el producto y cómo interactúa el usuario de la pyme/operador con el sistema.
-Plaintext
-??????????????????????????????????????????????????????????????????????????
-?                        CAPA 1: DASHBOARD & UI                         ?
-?  (Centro de Control, Selector de Campañas, Visualizador de Funnel y Métricas)  ?
-??????????????????????????????????????????????????????????????????????????
-                                    ?
-??????????????????????????????????????????????????????????????????????????
-?                    CAPA 2: MOTOR DE PROSPECCIÓN                        ?
-?  • Conectores de Scraping (Google Maps Reviews, Portales de Empleo)     ?
-?  • Pipeline de Ingestión, Limpieza y Deduplicación (Normalización E.164)?
-??????????????????????????????????????????????????????????????????????????
-                                    ?
-??????????????????????????????????????????????????????????????????????????
-?                 CAPA 3: AGENTE INTELIGENTE CON RAG                     ?
-?  • Extractor de Dolores (Análisis de sentimiento / reseña negativa)     ?
-?  • Vector DB (Soluciones Dapta, casos de uso, plantillas según sector) ?
-?  • Enrutador Adaptativo de Cuestionarios / Micro-sondeos               ?
-??????????????????????????????????????????????????????????????????????????
-                                    ?
-??????????????????????????????????????????????????????????????????????????
-?                  CAPA 4: MOTOR MULTICANAL (OUTREACH)                   ?
-?  • Despachador de Mensajes (Email SES/Resend, WhatsApp API, Web Forms) ?
-?  • Webhook Listener (Recepción de respuestas y micro-sondeo)           ?
-??????????????????????????????????????????????????????????????????????????
-                                    ?
-??????????????????????????????????????????????????????????????????????????
-?              CAPA 5: EVALUACIÓN DE UNIT ECONOMICS & DAPTA               ?
-?  • Tracker de Costos por Evento (Scraping + Tokens LLM + Envío)        ?
-?  • Bridge / Webhook hacia el Agente Calificador de Dapta               ?
-?  • Calculador en tiempo real de CPL Bruto vs. CPL Calificado           ?
-??????????????????????????????????????????????????????????????????????????
-2. Arquitectura de Sistema (Stack Tecnológico e Infraestructura)
-Esta vista aterriza las tecnologías concretas que utilizarán para que sea rápido de montar en las horas del evento:
-* Frontend / Dashboard:
-o Next.js + Tailwind CSS + shadcn/ui o Streamlit (si priorizan velocidad extrema en Python).
-o Vistas principales: Configuración de fuentes, visualizador de leads en vivo y gráficas de CPL por canal.
-* Backend & Orquestación:
-o FastAPI (Python): Maneja los webhooks, la lógica de scraping y las llamadas al LLM.
-o Workers asíncronos: Celery o tareas en segundo plano con BackgroundTasks de FastAPI para el scraping y envío de mensajes sin congelar la interfaz.
-* Cerebro de IA & RAG:
-o Embeddings & Vector Store: ChromaDB o LanceDB local (en memoria o archivo, sin necesidad de infraestructura pesada en la nube).
-o Base de Conocimiento Indexada: Documentos Markdown con casos de éxito por sector, catálogo de soluciones de Dapta y reglas de bifurcación de preguntas.
-o LLM: gpt-4o-mini o claude-3-5-haiku (rápidos, económicos para mantener el CPL bajo y precisos para JSON estructurado).
-* Persistencia:
-o PostgreSQL (Supabase) o SQLite local: Tablas para Leads, Campañas, Eventos_Costo, Respuestas_Sondeo y Calificaciones_Dapta.
-3. Flujo Operativo del Sistema (End-to-End)
-El recorrido de un lead desde que se detecta hasta que se califica en Dapta:
-Plaintext
-[1. DETECCIÓN]
-Scraper extrae pymes con señales de dolor públicas (ej. reseña de atención lenta).
-      ?
-      ?
-[2. INGESTA Y ENRIQUECIMIENTO]
-Se limpian duplicados (por dominio/teléfono) y se almacena el lead en estado "Detectado".
-      ?
-      ?
-[3. ANÁLISIS RAG Y SELECCIÓN DE MICRO-SONDEO]
-El LLM consulta la Vector DB con la industria del lead y su dolor.
-Selecciona la pregunta de sensibilidad de 1 clic (ej. "¿Sufren más por no-shows o por demora en responder?").
-      ?
-      ?
-[4. CONTACTO INICIAL (OUTREACH)]
-Se envía el micro-sondeo por el canal correspondiente (Email, Formulario o WhatsApp).
-Se registra el costo exacto del envío en la tabla de métricas.
-      ?
-      ?
-[5. CAPTURA DE RESPUESTA (WEBHOOK)]
-El prospecto responde la opción A o B.
-      ?
-      ?
-[6. DISPARO DE OFERTA DE ALTO VALOR]
-El agente genera la propuesta específica respaldada por el catálogo de soluciones de Dapta.
-      ?
-      ?
-[7. CALIFICACIÓN EN DAPTA]
-Si el prospecto avanza, se dispara el Webhook al Agente de Prueba de Dapta.
-Dapta devuelve: `Calificado: True/False` + `Score de Calidad`.
-      ?
-      ?
-[8. CIERRE DE MÉTRICA]
-El sistema computa el CPL Bruto y CPL Calificado para ese canal específico.
-4. El Módulo de Métricas y Unit Economics (El argumento ganador)
-Para el jurado, el valor diferencial no es solo enviar mensajes, sino la fórmula transparente de rentabilidad. La plataforma computará por cada canal:
-$$\text{CPL Bruto} = \frac{\sum (\text{Costo Scraping} + \text{Costo Tokens LLM} + \text{Costo Envío})}{\text{Total Leads que Respondieron al Sondeo}}$$
-$$\text{CPL Calificado} = \frac{\sum (\text{Costos Operativos Totales del Canal})}{\text{Total Leads Aprobados por el Agente de Dapta}}$$
-Ejemplo de tabla comparativa en el Dashboard:
-CanalCosto Unitario EnvíoTasa de Respuesta SondeoLeads Calificados DaptaCPL BrutoCPL Calificado (Final)Email Transaccional$0.0002 USD4%3$0.12 USD$1.10 USDFormulario Web$0.0000 USD7%5$0.05 USD$0.65 USDWhatsApp API$0.0350 USD28%14$0.25 USD$0.85 USDInsight para la demo: Demostrar que un canal más caro en el envío (WhatsApp) puede tener un CPL Calificado más bajo gracias a su alta tasa de conversión frente al email.
-5. Pitch corto para presentarle al equipo
-"El reto nos pide buscar leads gratis, contactarlos y medir el CPL. El 90% de los equipos van a raspar Google Maps a lo loco y spamear mensajes genéricos que nadie responde.
-Nuestra propuesta es distinta: crearemos una plataforma que busca señales de necesidad reales (ej. pymes con quejas de atención lenta o vacantes abiertas de ventas). En vez de venderles directo, el agente usa RAG para enviarles un micro-sondeo de sensibilidad de 1 sola pregunta. Cuando responden, el sistema les entrega una solución personalizada y pasa el lead caliente al agente de Dapta.
-Además, nuestro dashboard no solo muestra leads: tiene un calculador en vivo de unit economics que suma tokens de IA, costos de envío y scraping para decirle a la pyme exactamente qué canal le da el lead calificado más barato. Es técnico, creativo, no invasivo y cumple el 100% de los requisitos deseables."
--+-----
-?? Propuesta Hackatón: "Intent-Based Lead Engine + Unit Economics Tracker"
-?? 1. El Objetivo del Proyecto
-Crear una plataforma inteligente que no haga spam masivo en frío, sino que encuentre pymes con necesidades reales detectables en fuentes públicas gratuitas, las sondee de forma no invasiva mediante un micro-cuestionario interactivo, les entregue una propuesta personalizada usando RAG, y mida con precisión matemática el Costo por Lead (CPL) Bruto vs. Calificado en Dapta por cada canal.
-?? 2. Los 4 Pilares de la Solución
-Plaintext
- 1. Búsqueda con Intención  ?  2. Micro-Sondeo Ágil  ?  3. Personalización RAG  ?  4. Métricas & Dapta
- (Dolores públicos reales)      (1 sola pregunta)       (Oferta a la medida)      (CPL y Calificación)
-1. Scraping Basado en Señales de Dolor (Fuentes Gratuitas):
-o En lugar de raspar listas ciegas de negocios, se extraen pymes con señales públicas de necesidad:
-* Google Maps: Negocios con reseñas recientes quejándose de atención lenta o falta de respuesta.
-* Portales de Empleo (Google Jobs / LinkedIn): Empresas buscando contratar vendedores junior o personal de atención al cliente.
-* Auditoría Web Automática: Sitios de pymes que no tienen botón directo a WhatsApp o son lentos en móvil.
-2. Acercamiento No Invasivo (Micro-Sondeo de Sensibilidad):
-o En vez de vender directamente, el primer contacto es una pregunta de sondeo rápido de 1 solo clic para medir su sensibilidad al problema:
-* Ejemplo: "Notamos que gestionan clientes por aquí. Para un estudio rápido del sector: ¿su mayor cuello de botella son los clientes que no confirman o responder fuera de horario? (1 o 2)".
-3. Cerebro Inteligente con RAG (Retrieval-Augmented Generation):
-o Al recibir la respuesta (1 o 2), un agente con RAG consulta una base de conocimientos (catálogo de Dapta, casos de éxito por industria y plantillas de soluciones).
-o Genera y envía una micro-auditoría o propuesta a la medida según el sector y el dolor seleccionado, sin alucinaciones.
-4. Integración con Dapta & Métricas Reales (Unit Economics):
-o Cuando el prospecto muestra interés, se envía el lead enriquecido mediante Webhook al Agente Calificador de Dapta.
-o El sistema calcula y compara en tiempo real el costo operativo total contra los leads que Dapta aprueba.
-??? 3. Arquitectura del Sistema (Stack Recomendado)
-* Dashboard (UI): Streamlit (construcción ultra rápida) o Next.js + shadcn/ui.
-o Selector de fuentes gratuitas y campañas.
-o Pipeline de estados del lead en vivo.
-o Tablero comparativo de CPL y calidad por canal.
-* Backend: FastAPI (Python) para gestión de webhooks, lógica de scraping y llamadas asíncronas.
-* IA & RAG:
-o Vector Store ligero: ChromaDB o LanceDB (en memoria/local).
-o LLM: GPT-4o-mini o Claude 3.5 Haiku (rápidos, económicos y con salida JSON estructurada).
-* Canales de Salida:
-o Email transaccional (Resend o Amazon SES).
-o Formularios de contacto web (Playwright / Puppeteer).
-o WhatsApp Cloud API (simulado o entorno sandbox).
-?? 4. La Fórmula Ganadora de Métricas (CPL)
-El factor diferenciador frente al jurado es demostrar qué canal trae leads baratos y cuál trae leads buenos:
-$$\text{CPL Calificado} = \frac{\text{Costo Scraping} + \text{Costo Tokens IA} + \text{Costo Mensajería}}{\text{Total de Leads Aprobados por Dapta}}$$
-* Email: Costo de envío casi nulo, pero menor tasa de respuesta.
-* WhatsApp: Costo de envío más alto por mensaje, pero mayor tasa de interacción y mejor tasa de calificación final.
-* El Dashboard demuestra cuál canal genera el menor costo por lead realmente calificado.
-?? 5. Distribución de Roles Sugerida para el Equipo
-Rol / MiembroResponsabilidad PrincipalDev 1 (Scraping & Ingesta)Desarrollar los scripts de extracción (Google Maps, empleo, web) y la deduplicación de leads.Dev 2 (IA, RAG & Agente)Montar la base vectorial (ChromaDB), prompts de análisis de dolor, selección de sondeo y armado de ofertas personalizadas.Dev 3 (Backend & Dapta Bridge)Crear endpoints en FastAPI, webhooks de recepción de respuestas, integración con el entorno de pruebas de Dapta y tracking de costos.Dev 4 / Frontend (Dashboard)Construir la interfaz de usuario: panel de control de campañas, visualizador de funnel y gráficos de CPL por canal.

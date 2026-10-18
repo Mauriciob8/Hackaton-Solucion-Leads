@@ -1,7 +1,10 @@
-with open('dapta_widget.js', 'r', encoding='utf-8') as f:
-    text = f.read()
-
+from pathlib import Path
 import re
+
+raiz_proyecto = Path(__file__).resolve().parents[2]
+
+with open(raiz_proyecto / 'dapta_widget.js', 'r', encoding='utf-8') as f:
+    text = f.read()
 
 # Find initDaptaEmbeddedWidget definition
 idx = text.find('initDaptaEmbeddedWidget')
