@@ -138,6 +138,17 @@ def get_resumen():
     total de leads, calificados, costo total y canal con menor CPL.
     """
     resumen = calcular_resumen_global()
+    if resumen.total_leads_sistema == 0:
+        return {
+            "total_leads_sistema": 195,
+            "total_calificados": 22,
+            "costo_total_usd": 4.29,
+            "cpl_promedio_global": 0.195,
+            "canal_mas_eficiente": "Formulario Web",
+            "mejor_cpl_calificado": 0.65,
+            "modo_demo": True,
+        }
+
     canal_ganador = resumen.canal_ganador
 
     return {
@@ -147,6 +158,7 @@ def get_resumen():
         "cpl_promedio_global": resumen.cpl_promedio_global,
         "canal_mas_eficiente": canal_ganador.nombre if canal_ganador else "Sin datos",
         "mejor_cpl_calificado": canal_ganador.cpl_calificado if canal_ganador else 0.0,
+        "modo_demo": False,
     }
 
 
@@ -171,6 +183,23 @@ def get_smart_router():
     canales_activos = [m for m in metricas if m.total_calificados > 0 and m.cpl_calificado > 0]
 
     if len(canales_activos) < 2:
+        if not any(m.total_detectados > 0 for m in metricas):
+            return {
+                "hay_recomendacion": True,
+                "canal_recomendado": "Formulario Web",
+                "canal_recomendado_id": "formulario_web",
+                "cpl_recomendado": 0.65,
+                "canal_alternativo": "Email Transaccional",
+                "cpl_alternativo": 1.10,
+                "ahorro_porcentual": 40.9,
+                "total_canales_comparados": 3,
+                "mensaje": (
+                    "Recomendación de demostración: Formulario Web presenta un "
+                    "CPL calificado de $0.65 USD frente a $1.10 USD de Email."
+                ),
+                "modo_demo": True,
+            }
+
         # No hay suficientes datos para comparar — retornar mensaje genérico
         if len(canales_activos) == 1:
             c = canales_activos[0]
@@ -228,4 +257,3 @@ def get_smart_router():
         "mensaje":  mensaje,
         "modo_demo": False,
     }
-

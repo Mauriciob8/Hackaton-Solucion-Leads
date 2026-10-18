@@ -23,6 +23,7 @@ RUTA_BASE_DATOS = os.environ.get(
     "RUTA_BASE_DATOS",
     "motor_leads.db"
 )
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "").strip()
 
 # ---------------------------------------------------------------------------
 # Costos operativos por canal (en USD)
