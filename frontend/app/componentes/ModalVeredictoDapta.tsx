@@ -136,7 +136,7 @@ export default function ModalVeredictoDapta({
             </div>
             <div className="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-sans leading-relaxed border border-slate-800 whitespace-pre-wrap shadow-inner">
               {lead.feedback_dapta ||
-                "Calificación realizada con éxito por la Agente Susan de Dapta según los criterios de HackatonPrueba (necesidad, categoría, interacciones e ingresos)."}
+                "Calificación realizada con éxito por la Agente Susan de Dapta según los criterios de evaluación (necesidad, categoría, interacciones e ingresos)."}
             </div>
           </div>
         </div>

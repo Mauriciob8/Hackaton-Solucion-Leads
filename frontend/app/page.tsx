@@ -423,10 +423,7 @@ export default function PaginaPrincipal() {
         {/* Footer Admin */}
         <footer className="px-8 py-4 border-t border-slate-200/80 bg-white text-slate-400 text-xs flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto">
           <span>
-            © 2024 Motor de Leads — Hackathon Dapta · Intent-Based Lead Engine + Unit Economics Tracker
-          </span>
-          <span className="font-semibold text-slate-600">
-            Next.js 16 + FastAPI + SQLite WAL
+            © 2026 Motor de Leads — Hackathon Dapta · Intent-Based Lead Engine + Unit Economics Tracker
           </span>
         </footer>
       </div>
