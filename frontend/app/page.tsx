@@ -28,7 +28,11 @@ import VistaCatalogoRAG                     from "./componentes/VistaCatalogoRAG
 import ModalAuditoriaRAG                    from "./componentes/ModalAuditoriaRAG";
 import ModalConversacion                    from "./componentes/ModalConversacion";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = (() => {
+  const configuredUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (!configuredUrl) return "http://127.0.0.1:8000";
+  return `${configuredUrl.includes("://") ? "" : "https://"}${configuredUrl}`.replace(/\/+$/, "");
+})();
 
 interface EstadoApp {
   resumen:     DatosResumen | null;

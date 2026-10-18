@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: motor-leads-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: MODO_DEBUG
+        value: "false"
+      - key: RUTA_BASE_DATOS
+        value: /tmp/motor_leads.db
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: motor-leads-web
+          property: host
+
+  - type: web
+    name: motor-leads-web
+    runtime: node
+    rootDir: frontend
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- --hostname 0.0.0.0
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: motor-leads-api
+          property: host

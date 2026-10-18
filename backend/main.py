@@ -35,7 +35,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.base_datos.conexion import inicializar_base_datos
+from backend.config import FRONTEND_URL
 from backend.rutas import router_leads, router_campanas, router_metricas
+
+
+def _normalizar_origen(origen: str) -> str:
+    origen = origen.strip().rstrip("/")
+    if origen and "://" not in origen:
+        origen = f"https://{origen}"
+    return origen
 
 
 # ---------------------------------------------------------------------------
@@ -59,12 +67,18 @@ app = FastAPI(
 # Middleware CORS — permite conexión con el frontend Next.js
 # ---------------------------------------------------------------------------
 
+origenes_permitidos = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if FRONTEND_URL:
+    origen_frontend = _normalizar_origen(FRONTEND_URL)
+    if origen_frontend not in origenes_permitidos:
+        origenes_permitidos.append(origen_frontend)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins     = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins     = origenes_permitidos,
     allow_credentials = True,
     allow_methods     = ["*"],
     allow_headers     = ["*"],
